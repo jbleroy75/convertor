@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      PUBLIC_URL: https://${DOMAIN:-convertor.jbleroy.fr}
+      TRUST_PROXY: "1"
+      TRANSFER_MAX_GB: ${TRANSFER_MAX_GB:-50}
+      TRANSFER_STORAGE_GB: ${TRANSFER_STORAGE_GB:-200}
+      CONVERT_MAX_FILE_MB: ${CONVERT_MAX_FILE_MB:-1024}
+    volumes:
+      - transfers:/data
+      - convert-tmp:/tmp/convertor
+    # Réseau interne uniquement : l'application n'a AUCUN accès à Internet
+    # (protège contre les fichiers piégés qui tenteraient des requêtes sortantes).
+    networks: [internal]
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    mem_limit: ${APP_MEM_LIMIT:-4g}
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-convertor.jbleroy.fr}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [internal, public]
+
+networks:
+  internal:
+    internal: true
+  public: {}
+
+volumes:
+  transfers:
+  convert-tmp:
+  caddy-data:
+  caddy-config:

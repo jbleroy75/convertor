@@ -1,0 +1,84 @@
+name: Tests et déploiement
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Tests sans outils système (les conversions réelles sont testées en local / dans l'image).
+      - run: node --test test/crypto.test.js test/data.test.js test/transfer.test.js
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || 'convertor' }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      PUBLIC_URL: ${{ vars.PUBLIC_URL || 'https://convertor.jbleroy.fr' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la configuration
+        id: cfg
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
+            echo "::warning::Secrets DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY absents : déploiement ignoré (voir README)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Préparer SSH
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            echo "STRICT=yes" >> "$GITHUB_ENV"
+          else
+            echo "::warning::DEPLOY_KNOWN_HOSTS absent : l'empreinte du serveur est acceptée au premier contact."
+            echo "STRICT=accept-new" >> "$GITHUB_ENV"
+          fi
+
+      - name: Envoyer le code et relancer les conteneurs
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          SSH="ssh -i $HOME/.ssh/id_deploy -p $DEPLOY_PORT -o StrictHostKeyChecking=$STRICT -o BatchMode=yes $DEPLOY_USER@$DEPLOY_HOST"
+          # Le code est envoyé par SSH (git archive) : le serveur n'a pas besoin d'accès à GitHub.
+          git archive --format=tar.gz HEAD | $SSH "mkdir -p '$DEPLOY_PATH' && cat > '$DEPLOY_PATH/release.tar.gz'"
+          $SSH "DEPLOY_PATH='$DEPLOY_PATH' bash -s" < deploy/remote-deploy.sh
+
+      - name: Vérifier que le site répond
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          # Le premier déploiement peut attendre l'émission du certificat HTTPS.
+          for i in $(seq 1 36); do
+            if curl -fsS --max-time 10 "$PUBLIC_URL/healthz"; then echo; echo "En ligne : $PUBLIC_URL"; exit 0; fi
+            sleep 5
+          done
+          echo "::error::$PUBLIC_URL/healthz ne répond pas après 3 minutes"
+          exit 1

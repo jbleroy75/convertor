@@ -1,0 +1,18 @@
+# Certificats HTTPS (Let's Encrypt / ZeroSSL) obtenus automatiquement par Caddy.
+{$DOMAIN:convertor.jbleroy.fr} {
+	# Pas de journal d'accès : on ne garde aucune trace de qui transfère quoi.
+	encode zstd gzip
+
+	header {
+		-Server
+	}
+
+	reverse_proxy app:3000 {
+		# Diffuse les réponses (ZIP, blocs chiffrés) sans les mettre en tampon.
+		flush_interval -1
+	}
+}
+
+www.{$DOMAIN:convertor.jbleroy.fr} {
+	redir https://{$DOMAIN:convertor.jbleroy.fr}{uri} permanent
+}
