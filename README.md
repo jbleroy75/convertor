@@ -46,42 +46,25 @@ Caddy obtient le certificat Let's Encrypt tout seul. L'application tourne :
 
 Les transferts sont stockés dans le volume `transfers` et nettoyés automatiquement (expiration, quota, envois abandonnés après 24 h).
 
-### Déploiement automatique (GitHub Actions)
+### Déploiement en production (Coolify)
 
-À chaque push sur `main`, la GitHub Action `.github/workflows/deploy.yml` lance les tests, envoie le code
-au serveur par SSH, reconstruit les conteneurs puis vérifie que `https://convertor.jbleroy.fr/healthz` répond.
-Le serveur n'a besoin d'aucun accès à GitHub. Tant que les secrets ne sont pas renseignés, l'étape de déploiement est simplement ignorée.
+Le site tourne sur Coolify, qui construit le `Dockerfile` et gère Traefik et le HTTPS.
+Réglages de l'application : dépôt public `https://github.com/jbleroy75/convertor` (branche `main`),
+Build Pack **Dockerfile**, domaine `https://convertor.jbleroy.fr`, port `3000`,
+variable `TRUST_PROXY=1`, volume persistant monté sur `/data`.
 
-**Une seule fois, sur le serveur** (Debian/Ubuntu) :
-
-```bash
-curl -fsSL https://get.docker.com | sh                       # Docker + docker compose
-sudo adduser --disabled-password --gecos "" deploy && sudo usermod -aG docker deploy
-sudo -u deploy mkdir -p /home/deploy/.ssh
-```
-
-**Une seule fois, sur ton ordinateur** — créer une clé dédiée au déploiement :
-
-```bash
-ssh-keygen -t ed25519 -N "" -C convertor-deploy -f convertor_deploy
-ssh-copy-id -i convertor_deploy.pub deploy@IP_DU_SERVEUR      # ou coller le .pub dans /home/deploy/.ssh/authorized_keys
-ssh-keyscan IP_DU_SERVEUR                                       # sortie à mettre dans DEPLOY_KNOWN_HOSTS
-```
-
-**Dans GitHub** → *Settings → Secrets and variables → Actions* :
+**Déploiement automatique** : à chaque push sur `main`, la GitHub Action lance les tests, puis demande
+à Coolify de redéployer, suit le build (et affiche ses logs en cas d'échec), puis vérifie
+`https://convertor.jbleroy.fr/healthz`. Configuration unique, dans GitHub → *Settings → Secrets and variables → Actions* :
 
 | Secret | Valeur |
 |---|---|
-| `DEPLOY_HOST` | IP ou nom du serveur |
-| `DEPLOY_USER` | `deploy` |
-| `DEPLOY_SSH_KEY` | contenu du fichier `convertor_deploy` (clé **privée**) |
-| `DEPLOY_KNOWN_HOSTS` | sortie de `ssh-keyscan` (recommandé, protège contre l'usurpation du serveur) |
-| `DEPLOY_PORT` | facultatif, `22` par défaut |
-| `DEPLOY_PATH` | facultatif, `convertor` (dans le dossier de l'utilisateur) par défaut |
+| `COOLIFY_WEBHOOK` | Coolify → l'application → *Webhooks* → **Deploy Webhook** (URL `…/api/v1/deploy?uuid=…`) |
+| `COOLIFY_TOKEN` | Coolify → *Keys & Tokens → API Tokens* : jeton avec les droits **deploy** et **read** |
 
-Le DNS `convertor.jbleroy.fr` doit pointer vers le serveur (ports 80 et 443 ouverts). Ensuite :
-*Actions → Tests et déploiement → Run workflow*, ou n'importe quel push sur `main`.
-Pour changer les réglages (quotas…), éditer `~/convertor/.env` sur le serveur puis relancer le workflow.
+Tant que ces secrets sont absents, l'étape de déploiement est ignorée.
+
+Le `docker-compose.yml` (avec Caddy) reste disponible pour héberger le site sur un serveur sans Coolify.
 
 ### Variables d'environnement
 
