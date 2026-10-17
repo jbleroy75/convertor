@@ -32,7 +32,6 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:-convertor.jbleroy.fr}
-      ACME_EMAIL: ${ACME_EMAIL:-}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

@@ -68,6 +68,19 @@ for (const [file, target, check] of [
   });
 }
 
+test('PDF de 11 pages → images dans l’ordre des pages', { timeout: 120_000 }, async () => {
+  // Pages de largeurs croissantes : la page n doit être plus large que la page n-1.
+  const pages = Array.from({ length: 11 }, (_, i) => `page${i}.png`);
+  pages.forEach((p, i) => sh('convert', ['-size', `${20 + i * 10}x20`, 'xc:gray', p]));
+  sh('convert', [...pages, 'multi.pdf']);
+  const { convertFile } = require('../server/convert');
+  const work = fs.mkdtempSync(path.join(root, 'pdfpages-'));
+  const out = await convertFile(path.join(fx, 'multi.pdf'), 'pdf', 'png', work);
+  assert.equal(out.length, 11);
+  const widths = out.map((f) => fs.readFileSync(f).readUInt32BE(16));
+  assert.deepEqual(widths, [...widths].sort((a, b) => a - b));
+});
+
 test('md → html conserve les accents', async () => {
   const { res, buf } = await convert(['doc.md'], 'html');
   assert.equal(res.status, 200);

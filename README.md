@@ -35,7 +35,7 @@ Prérequis : un serveur avec Docker, et un enregistrement DNS `convertor.jbleroy
 
 ```bash
 git clone https://github.com/jbleroy75/convertor.git && cd convertor
-cp .env.example .env          # ajuster ACME_EMAIL, quotas…
+cp .env.example .env          # ajuster les quotas si besoin
 docker compose up -d --build
 ```
 
@@ -81,14 +81,13 @@ ssh-keyscan IP_DU_SERVEUR                                       # sortie à mett
 
 Le DNS `convertor.jbleroy.fr` doit pointer vers le serveur (ports 80 et 443 ouverts). Ensuite :
 *Actions → Tests et déploiement → Run workflow*, ou n'importe quel push sur `main`.
-Pour changer les réglages (`ACME_EMAIL`, quotas…), éditer `~/convertor/.env` sur le serveur puis relancer le workflow.
+Pour changer les réglages (quotas…), éditer `~/convertor/.env` sur le serveur puis relancer le workflow.
 
 ### Variables d'environnement
 
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `DOMAIN` | `convertor.jbleroy.fr` | Domaine public |
-| `ACME_EMAIL` | — | E-mail Let's Encrypt |
 | `TRANSFER_MAX_GB` | `50` | Taille max d'un transfert |
 | `TRANSFER_STORAGE_GB` | `200` | Quota disque total des transferts |
 | `CONVERT_MAX_FILE_MB` | `1024` | Taille max d'un fichier à convertir |

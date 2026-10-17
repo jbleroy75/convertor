@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const fsp = require('fs/promises');
 const path = require('path');
 const config = require('../config');
@@ -15,6 +16,7 @@ class TransferStore {
   constructor(root = path.join(config.dataDir, 'transfers')) {
     this.root = root;
     this.items = new Map();
+    this.saving = new Map();
   }
 
   async init() {
@@ -71,11 +73,24 @@ class TransferStore {
     await this.save(t);
   }
 
-  async save(t) {
+  /**
+   * Les blocs arrivent en parallèle : les écritures d'un même transfert sont mises en file,
+   * et chacune sérialise l'état courant au moment où elle s'exécute (la dernière gagne).
+   */
+  save(t) {
+    const previous = this.saving.get(t.id) || Promise.resolve();
+    const next = previous.catch(() => {}).then(() => this.write(t));
+    this.saving.set(t.id, next);
+    next.finally(() => this.saving.get(t.id) === next && this.saving.delete(t.id)).catch(() => {});
+    return next;
+  }
+
+  async write(t) {
     if (t.deleted) return;
     const { tickets, ...persisted } = t;
-    const tmp = `${this.metaPath(t.id)}.${process.pid}.tmp`;
+    const tmp = `${this.metaPath(t.id)}.${crypto.randomBytes(6).toString('hex')}.tmp`;
     await fsp.writeFile(tmp, JSON.stringify(persisted), { mode: 0o600 });
+    if (t.deleted) return fsp.rm(tmp, { force: true });
     await fsp.rename(tmp, this.metaPath(t.id));
   }
 

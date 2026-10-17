@@ -154,3 +154,32 @@ test('validation : blocs incomplets, trop gros, paramètres invalides', async ()
   // Non finalisé => invisible pour les destinataires.
   assert.equal((await fetch(`${srv.base}/api/transfers/${created.id}/params`)).status, 404);
 });
+
+test('envoi de blocs en parallèle (comme le navigateur)', { timeout: 60_000 }, async () => {
+  const data = crypto.randomBytes(5 * C.CHUNK_BYTES + 99);
+  const secret = C.randomBytes(32);
+  const hkdfSalt = C.randomBytes(16);
+  const keys = await C.deriveKeys({ secret, hkdfSalt });
+  const created = await (
+    await fetch(`${srv.base}/api/transfers`, json({ v: 1, expiresIn: 3600, maxDownloads: 5, hkdfSalt: C.b64urlEncode(hkdfSalt), authHash: C.b64urlEncode(await C.sha256(keys.authToken)) }))
+  ).json();
+  const auth = { Authorization: `Bearer ${created.ownerToken}` };
+  const n = 6;
+  const bodies = await Promise.all(
+    Array.from({ length: n }, (_, i) => C.encryptChunk(keys.fileKey, i, i === n - 1, data.subarray(i * C.CHUNK_BYTES, (i + 1) * C.CHUNK_BYTES)))
+  );
+  const statuses = await Promise.all(bodies.map((body, i) => fetch(`${srv.base}/api/transfers/${created.id}/chunks/${i}`, { method: 'PUT', headers: auth, body }).then((r) => r.status)));
+  assert.deepEqual(statuses, Array(n).fill(204));
+  const encMeta = C.b64urlEncode(await C.encryptMeta(keys.metaKey, { name: 'p.bin', size: data.length }));
+  assert.equal((await fetch(`${srv.base}/api/transfers/${created.id}/complete`, json({ chunkCount: n, encMeta }, auth))).status, 200);
+  // L'état persisté sur disque doit contenir tous les blocs (pas un instantané périmé).
+  const onDisk = JSON.parse(require('fs').readFileSync(srv.store.metaPath(created.id), 'utf8'));
+  assert.equal(Object.keys(onDisk.chunks).length, n);
+  assert.equal(onDisk.complete, true);
+  assert.equal(sha((await download(created.id, secret)).data), sha(data));
+});
+
+test('la limite de taille porte sur les données en clair, pas sur le surcoût du chiffrement', () => {
+  const { plaintextBytes } = require('../server/routes/transfers');
+  assert.equal(plaintextBytes({ storedBytes: 2 * (C.CHUNK_BYTES + 16), chunks: { 0: 1, 1: 1 } }), 2 * C.CHUNK_BYTES);
+});

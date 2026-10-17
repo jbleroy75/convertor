@@ -157,7 +157,8 @@ async function pdfImages(input, from, to, outDir) {
   const prefix = path.join(outDir, 'page');
   const fmt = to === 'png' ? ['-png'] : ['-jpeg', '-jpegopt', 'quality=90'];
   await run('pdftoppm', ['-r', '150', ...fmt, input, prefix], { cwd: outDir });
-  const files = (await fs.readdir(outDir)).filter((f) => f.startsWith('page')).sort();
+  const pageNo = (f) => Number(/(\d+)\.\w+$/.exec(f)?.[1] || 0);
+  const files = (await fs.readdir(outDir)).filter((f) => f.startsWith('page')).sort((a, b) => pageNo(a) - pageNo(b));
   return files.map((f) => path.join(outDir, f));
 }
 

@@ -1,8 +1,4 @@
-{
-	# Certificats Let's Encrypt automatiques.
-	email {$ACME_EMAIL}
-}
-
+# Certificats HTTPS (Let's Encrypt / ZeroSSL) obtenus automatiquement par Caddy.
 {$DOMAIN:convertor.jbleroy.fr} {
 	# Pas de journal d'accès : on ne garde aucune trace de qui transfère quoi.
 	encode zstd gzip

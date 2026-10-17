@@ -11,8 +11,14 @@ const T = config.transfer;
 const MAX_CHUNK = T.chunkBytes + 16;
 const MAX_CHUNKS = Math.ceil(T.maxTransferBytes / T.chunkBytes) + 1;
 const MAX_META = 64 * 1024;
+const TAG_BYTES = 16;
 
-module.exports = function transfersRouter(store) {
+/** Taille des données en clair : chaque bloc chiffré porte un tag GCM de 16 o. */
+function plaintextBytes(t) {
+  return t.storedBytes - TAG_BYTES * Object.keys(t.chunks).length;
+}
+
+function transfersRouter(store) {
   const router = express.Router();
   const json = express.json({ limit: '128kb' });
 
@@ -104,7 +110,8 @@ module.exports = function transfersRouter(store) {
     const declared = Number(req.get('content-length'));
     if (!Number.isFinite(declared) || declared < 16 || declared > MAX_CHUNK) return res.status(413).json({ error: 'Bloc de taille invalide' });
     const previous = t.chunks[index] || 0;
-    if (t.storedBytes - previous + declared > T.maxTransferBytes)
+    const chunksAfter = Object.keys(t.chunks).length + (index in t.chunks ? 0 : 1);
+    if (t.storedBytes - previous + declared - TAG_BYTES * chunksAfter > T.maxTransferBytes)
       return res.status(413).json({ error: `Transfert trop volumineux (max ${T.maxTransferBytes / 1024 ** 3} Go)` });
     if (store.usedBytes() + declared > T.maxStorageBytes) return res.status(507).json({ error: 'Stockage du serveur plein' });
 
@@ -249,4 +256,7 @@ module.exports = function transfersRouter(store) {
   });
 
   return router;
-};
+}
+
+module.exports = transfersRouter;
+module.exports.plaintextBytes = plaintextBytes;
