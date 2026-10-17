@@ -462,7 +462,7 @@
             'span',
             { class: 'fmeta' },
             el('span', { class: 'name', title: s.name }, s.name),
-            el('span', { class: 'size' }, s.kept ? `${formatBytes(s.before)} · déjà optimisé, fichier d’origine conservé` : `${formatBytes(s.before)} → ${formatBytes(s.after)}`)
+            el('span', { class: 'size' }, s.kept ? `${formatBytes(s.before)} · déjà optimisé${/\.(jpe?g|png|webp)$/i.test(s.name) ? ' (métadonnées retirées)' : ', fichier d’origine conservé'}` : `${formatBytes(s.before)} → ${formatBytes(s.after)}`)
           ),
           el('b', { class: `gain${s.kept ? ' none' : ''}` }, s.kept ? '0 %' : `−${pct(s.before, s.after)} %`)
         )

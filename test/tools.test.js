@@ -87,6 +87,17 @@ test('compression : si le résultat est plus gros, on rend l’original', async 
   assert.equal(stats[0].kept, true);
 });
 
+test('photo impossible à alléger : métadonnées quand même supprimées', async () => {
+  // JPG déjà très compressé (qualité 30) + commentaire « secret » : le réencoder en qualité 85 le ferait grossir.
+  sh('convert', ['-size', '200x150', 'plasma:', '-set', 'comment', 'GPS-SECRET-48.85N', '-quality', '30', 'tagged.jpg']);
+  assert.match(sh('identify', ['-format', '%c', 'tagged.jpg']), /GPS-SECRET/);
+  const { res, buf, out, stats } = await tool('compress', ['tagged.jpg'], { level: 'light' });
+  assert.equal(res.status, 200);
+  assert.ok(!buf.includes(Buffer.from('GPS-SECRET')), 'les métadonnées doivent être retirées');
+  assert.deepEqual(imgSize(out), [200, 150]);
+  assert.equal(stats[0].kept, true);
+});
+
 test('compression de plusieurs fichiers → ZIP', { timeout: 60_000 }, async () => {
   const { res, buf } = await tool('compress', ['photo.jpg', 'small.png'], { level: 'balanced' });
   assert.equal(res.status, 200);

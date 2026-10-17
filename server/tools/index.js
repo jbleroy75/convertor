@@ -138,9 +138,18 @@ const TOOLS = {
     async run({ file, ext, base, dir, opts }) {
       const r = await compressOne(file, ext, opts, dir);
       const [before, after] = await Promise.all([fsp.stat(file), fsp.stat(r.path)]);
-      // Si on ne gagne rien, on rend l'original (dans son format d'origine).
-      if (after.size >= before.size) return [{ path: file, name: `${base}.${ext}`, before: before.size, after: before.size, kept: true }];
-      return [{ path: r.path, name: `${base}.${r.ext}`, before: before.size, after: after.size }];
+      if (after.size < before.size) return [{ path: r.path, name: `${base}.${r.ext}`, before: before.size, after: after.size }];
+      // Rien à gagner. Pour une photo, on ne rend JAMAIS l'original brut (GPS, appareil…) :
+      // passe « métadonnées seulement », sans redimensionnement, à la qualité d'origine.
+      if (IMG_IN.includes(ext) && ext !== 'gif') {
+        const outExt = imgOutExt(ext);
+        const clean = path.join(dir, `clean.${outExt}`);
+        await run('convert', [magickIn(file, ext), '-auto-orient', '-strip', `${coder(outExt)}:${clean}`], { cwd: dir });
+        const size = (await fsp.stat(clean)).size;
+        return [{ path: clean, name: `${base}.${outExt}`, before: before.size, after: size, kept: true }];
+      }
+      // Autres formats : l'original, dans son format d'origine.
+      return [{ path: file, name: `${base}.${ext}`, before: before.size, after: before.size, kept: true }];
     },
   },
 
