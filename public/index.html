@@ -3,54 +3,94 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Convertor — convertir et transférer vos fichiers</title>
-  <meta name="description" content="Convertissez n'importe quel fichier (images, vidéos, audio, documents, PDF, données), zippez-les, et transférez de gros fichiers chiffrés de bout en bout.">
-  <meta name="color-scheme" content="light dark">
+  <title>Convertor — tous vos fichiers, toutes les possibilités</title>
+  <meta name="description" content="Convertissez n'importe quel fichier (images, vidéos, audio, documents, PDF), créez des ZIP et transférez de gros fichiers chiffrés de bout en bout.">
+  <meta name="color-scheme" content="light">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <header class="top">
-    <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28"> Convertor</a>
-    <nav class="tabs" role="tablist">
-      <button role="tab" id="tab-convert" aria-controls="panel-convert" aria-selected="true">Convertir</button>
-      <button role="tab" id="tab-transfer" aria-controls="panel-transfer" aria-selected="false">Transfert sécurisé</button>
-    </nav>
+  <header class="site">
+    <div class="site-inner">
+      <a class="logo" href="/" aria-label="Convertor, accueil">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 19a12 12 0 0 1 20.5-8.5" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/><path d="M24 4.5l6.5 6.5-8 2.5z" fill="currentColor"/><path d="M32 21a12 12 0 0 1-20.5 8.5" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/><path d="M16 35.5L9.5 29l8-2.5z" fill="currentColor"/></svg>
+        <span>convertor</span>
+      </a>
+      <nav class="mainnav" aria-label="Navigation principale">
+        <a href="#convertir">Convertir</a>
+        <a href="#zip">Compresser</a>
+        <a href="#transfert">Transférer</a>
+        <a href="#securite">Sécurité</a>
+      </nav>
+      <a class="btn dark" href="#convertir">Commencer <span aria-hidden="true">→</span></a>
+    </div>
   </header>
 
   <main>
-    <!-- ===================== CONVERSION ===================== -->
-    <section id="panel-convert" role="tabpanel" aria-labelledby="tab-convert">
-      <div class="hero">
-        <h1>Convertir n'importe quel fichier</h1>
-        <p>Images, vidéos, audio, documents Office, PDF, Markdown, JSON/CSV… Plusieurs fichiers d'un coup, avec export ZIP.
-          Les fichiers sont supprimés du serveur dès la conversion terminée.</p>
+    <section class="hero">
+      <div class="hero-art" aria-hidden="true">
+        <span class="glow"></span>
+        <span class="tile t-pdf" data-icon="pdf"><b>PDF</b></span>
+        <span class="tile t-docx" data-icon="docx"><b>DOCX</b></span>
+        <span class="tile t-jpg" data-icon="jpg"><b>JPG</b></span>
+        <span class="tile t-mp4" data-icon="mp4"><b>MP4</b></span>
+        <span class="tile t-zip" data-icon="zip"><b>ZIP</b></span>
+        <span class="cube c1"></span><span class="cube c2"></span><span class="cube c3"></span>
+        <svg class="arrows" viewBox="0 0 400 320"><path d="M60 230 C 30 160 70 100 140 90" /><path d="M180 70 C 230 40 290 50 320 90" /><path d="M300 270 C 270 300 220 300 190 280" /><path d="M370 120 C 395 160 390 200 370 230" /></svg>
+      </div>
+      <p class="eyebrow">Vos fichiers, sans limites inutiles</p>
+      <h1>Tous vos fichiers.<br><span>Toutes les possibilités.</span></h1>
+      <p class="lead">Convertissez, compressez et partagez vos fichiers en toute simplicité.</p>
+    </section>
+
+    <!-- ===================== OUTIL ===================== -->
+    <section class="tool" id="outil" aria-label="Outil">
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="convert" id="tab-convert" aria-selected="true" aria-controls="panel-files">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M14 3l5 5M14 3v5h5M19 8v3M9 9h2M9 13h5M9 17h2"/><path d="M15 15h6v6h-6zM18 13v2"/></svg>
+          Convertir un fichier
+        </button>
+        <button role="tab" data-tab="zip" id="tab-zip" aria-selected="false" aria-controls="panel-files">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18H6z"/><path d="M11 3v2h2v2h-2v2h2v2h-2"/><rect x="10" y="13" width="4" height="5" rx="1"/></svg>
+          Créer un ZIP
+        </button>
+        <button role="tab" data-tab="transfer" id="tab-transfer" aria-selected="false" aria-controls="panel-transfer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/></svg>
+          Transfert sécurisé
+        </button>
       </div>
 
-      <div class="card">
+      <!-- Conversion & ZIP : même zone de fichiers -->
+      <div id="panel-files" role="tabpanel" class="panel">
         <label class="drop" id="convert-drop">
           <input type="file" id="convert-input" multiple hidden>
-          <span class="drop-icon" aria-hidden="true">⇪</span>
-          <strong>Déposez vos fichiers ici</strong>
-          <span class="muted">ou cliquez pour parcourir</span>
+          <svg class="cloud" viewBox="0 0 48 40" aria-hidden="true"><path d="M14 32H11a9 9 0 0 1-1-17.9A13 13 0 0 1 35 11a10.5 10.5 0 0 1 2 21h-3"/><path d="M24 36V20M18 26l6-6 6 6"/></svg>
+          <strong>Glissez vos fichiers ici</strong>
+          <span class="muted">ou sélectionnez-les sur votre appareil</span>
+          <span class="btn primary choose">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Choisir des fichiers
+          </span>
+          <span class="pills" aria-hidden="true"><i>PDF</i><i>DOCX</i><i>JPG</i><i>PNG</i><i>MP4</i><i>ZIP</i></span>
         </label>
 
-        <ul class="file-list" id="convert-files"></ul>
+        <ul class="file-rows" id="convert-files"></ul>
 
-        <div id="convert-options" hidden>
-          <h2 class="step">Convertir en…</h2>
-          <div class="chips" id="convert-targets" role="radiogroup" aria-label="Format de sortie"></div>
-          <p class="muted small" id="convert-hint"></p>
-
-          <div class="row">
-            <label class="check"><input type="checkbox" id="convert-zip"> Recevoir le résultat dans un fichier ZIP</label>
+        <div class="actionbar" id="convert-options" hidden>
+          <div class="summary" id="convert-summary"></div>
+          <span class="arrow" aria-hidden="true">→</span>
+          <div class="target" id="convert-target-wrap">
+            <span class="target-icon" id="convert-target-icon" aria-hidden="true"></span>
+            <select id="convert-target" aria-label="Format de sortie"></select>
           </div>
-
-          <div class="actions">
-            <button class="btn primary" id="convert-go" disabled>Convertir</button>
-            <button class="btn ghost" id="convert-clear">Tout retirer</button>
-          </div>
+          <button class="btn primary go" id="convert-go" disabled>Convertir</button>
         </div>
+        <div class="subopts" id="convert-subopts" hidden>
+          <label class="check"><input type="checkbox" id="convert-zip"> Recevoir le résultat dans un fichier ZIP</label>
+          <button class="link-btn" id="convert-clear" type="button">Tout retirer</button>
+        </div>
+        <p class="muted small hint" id="convert-hint"></p>
 
         <div class="progress" id="convert-progress" hidden>
           <div class="bar"><span></span></div>
@@ -59,123 +99,165 @@
         <div class="alert" id="convert-error" role="alert" hidden></div>
       </div>
 
-      <details class="formats card">
-        <summary>Formats pris en charge</summary>
-        <div id="formats-table"></div>
-      </details>
-    </section>
-
-    <!-- ===================== TRANSFERT ===================== -->
-    <section id="panel-transfer" role="tabpanel" aria-labelledby="tab-transfer" hidden>
-      <div class="hero">
-        <h1>Transférer de gros fichiers, chiffrés de bout en bout</h1>
-        <p>Vos fichiers sont chiffrés <strong>dans votre navigateur</strong> avant l'envoi (AES-256-GCM).
-          La clé n'est jamais transmise au serveur : seul le destinataire du lien peut les ouvrir.</p>
-      </div>
-
-      <div class="card" id="send-card">
-        <label class="drop" id="send-drop">
-          <input type="file" id="send-input" multiple hidden>
-          <span class="drop-icon" aria-hidden="true">🔒</span>
-          <strong>Déposez les fichiers à envoyer</strong>
-          <span class="muted">ou cliquez pour parcourir — jusqu'à <span id="send-max">50 Go</span></span>
-        </label>
-        <div class="row center">
-          <button class="btn ghost small" id="send-folder">Choisir un dossier</button>
-          <input type="file" id="send-folder-input" webkitdirectory hidden>
-        </div>
-
-        <ul class="file-list" id="send-files"></ul>
-
-        <div id="send-options" hidden>
-          <div class="grid">
-            <label>Expiration
-              <select id="send-expiry">
-                <option value="3600">1 heure</option>
-                <option value="86400">1 jour</option>
-                <option value="259200">3 jours</option>
-                <option value="604800" selected>7 jours</option>
-                <option value="2592000">30 jours</option>
-              </select>
-            </label>
-            <label>Téléchargements max.
-              <select id="send-downloads">
-                <option value="1">1 (autodestruction)</option>
-                <option value="2">2</option>
-                <option value="5" selected>5</option>
-                <option value="10">10</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </label>
-          </div>
-
-          <label>Mot de passe (optionnel, recommandé)
-            <div class="pw">
-              <input type="password" id="send-password" autocomplete="new-password" placeholder="Partagez-le par un autre canal que le lien">
-              <button class="btn ghost small" id="send-pw-gen" type="button" title="Générer un mot de passe fort">Générer</button>
-              <button class="btn ghost small" id="send-pw-show" type="button" aria-pressed="false">Afficher</button>
-            </div>
+      <!-- Transfert sécurisé -->
+      <div id="panel-transfer" role="tabpanel" class="panel" hidden>
+        <div id="send-card">
+          <label class="drop" id="send-drop">
+            <input type="file" id="send-input" multiple hidden>
+            <svg class="cloud" viewBox="0 0 48 40" aria-hidden="true"><rect x="13" y="17" width="22" height="18" rx="3"/><path d="M18 17v-5a6 6 0 0 1 12 0v5M24 24v4"/></svg>
+            <strong>Déposez les fichiers à envoyer</strong>
+            <span class="muted">Chiffrés dans votre navigateur avant l'envoi — jusqu'à 50 Go</span>
+            <span class="btn primary choose">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              Choisir des fichiers
+            </span>
           </label>
-          <div class="meter" id="send-pw-meter" hidden><span></span><em></em></div>
+          <p class="center small"><button class="link-btn" id="send-folder" type="button">ou envoyer un dossier entier</button></p>
+          <input type="file" id="send-folder-input" webkitdirectory hidden>
 
-          <div class="row">
+          <ul class="file-rows" id="send-files"></ul>
+
+          <div id="send-options" class="send-options" hidden>
+            <div class="grid">
+              <label>Expiration du lien
+                <select id="send-expiry">
+                  <option value="3600">1 heure</option>
+                  <option value="86400">1 jour</option>
+                  <option value="259200">3 jours</option>
+                  <option value="604800" selected>7 jours</option>
+                  <option value="2592000">30 jours</option>
+                </select>
+              </label>
+              <label>Téléchargements max.
+                <select id="send-downloads">
+                  <option value="1">1 (autodestruction)</option>
+                  <option value="2">2</option>
+                  <option value="5" selected>5</option>
+                  <option value="10">10</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+            </div>
+
+            <label>Mot de passe <span class="muted">(optionnel, recommandé)</span>
+              <span class="pw">
+                <input type="password" id="send-password" autocomplete="new-password" placeholder="À partager par un autre canal que le lien">
+                <button class="btn ghost small" id="send-pw-gen" type="button">Générer</button>
+                <button class="btn ghost small" id="send-pw-show" type="button" aria-pressed="false">Afficher</button>
+              </span>
+            </label>
+            <div class="meter" id="send-pw-meter" hidden><span></span><em></em></div>
+
             <label class="check"><input type="checkbox" id="send-zip"> Zipper les fichiers (automatique s'il y en a plusieurs)</label>
+
+            <div class="actions">
+              <button class="btn primary go" id="send-go">Chiffrer et envoyer</button>
+              <button class="link-btn" id="send-clear" type="button">Tout retirer</button>
+            </div>
           </div>
 
+          <div class="progress" id="send-progress" hidden>
+            <div class="bar"><span></span></div>
+            <p class="status"></p>
+            <button class="btn ghost small" id="send-cancel">Annuler</button>
+          </div>
+          <div class="alert" id="send-error" role="alert" hidden></div>
+        </div>
+
+        <div class="result" id="send-result" hidden>
+          <h2>✅ Envoi terminé</h2>
+          <p>Partagez ce lien. <strong>Il contient la clé de déchiffrement</strong> : quiconque le possède
+            <span id="send-result-pw">peut télécharger le fichier</span>.</p>
+          <div class="linkbox">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>
+            <input type="text" id="send-link" readonly aria-label="Lien de téléchargement">
+            <button class="btn primary small" id="send-copy">Copier</button>
+          </div>
+          <p class="muted small" id="send-result-info"></p>
           <div class="actions">
-            <button class="btn primary" id="send-go">Chiffrer et envoyer</button>
-            <button class="btn ghost" id="send-clear">Tout retirer</button>
+            <button class="btn ghost" id="send-again">Envoyer d'autres fichiers</button>
           </div>
         </div>
 
-        <div class="progress" id="send-progress" hidden>
-          <div class="bar"><span></span></div>
-          <p class="status"></p>
-          <button class="btn ghost small" id="send-cancel">Annuler</button>
+        <div class="mine" id="my-transfers" hidden>
+          <h2>Mes envois</h2>
+          <p class="muted small">Gardés uniquement dans ce navigateur. Vous pouvez supprimer un envoi à tout moment.</p>
+          <ul class="transfers" id="my-transfers-list"></ul>
         </div>
-        <div class="alert" id="send-error" role="alert" hidden></div>
-      </div>
-
-      <div class="card success" id="send-result" hidden>
-        <h2>✅ Envoi terminé</h2>
-        <p>Partagez ce lien. <strong>Il contient la clé de déchiffrement</strong> : quiconque le possède
-          <span id="send-result-pw">peut télécharger le fichier</span>.</p>
-        <div class="link">
-          <input type="text" id="send-link" readonly>
-          <button class="btn primary" id="send-copy">Copier</button>
-        </div>
-        <p class="muted small" id="send-result-info"></p>
-        <div class="actions">
-          <button class="btn ghost" id="send-again">Envoyer d'autres fichiers</button>
-        </div>
-      </div>
-
-      <div class="card" id="my-transfers" hidden>
-        <h2>Mes envois</h2>
-        <p class="muted small">Gardés uniquement dans ce navigateur. Vous pouvez supprimer un envoi à tout moment.</p>
-        <ul class="transfers" id="my-transfers-list"></ul>
-      </div>
-
-      <div class="card security">
-        <h2>Comment c'est sécurisé ?</h2>
-        <ul>
-          <li><strong>Chiffrement de bout en bout</strong> AES-256-GCM, effectué dans votre navigateur. Le serveur ne stocke que des données illisibles.</li>
-          <li><strong>La clé reste dans le lien</strong>, après le <code>#</code> : cette partie n'est jamais envoyée au serveur.</li>
-          <li><strong>Mot de passe</strong> renforcé par PBKDF2 (600 000 itérations) et combiné à la clé du lien : il faut les deux.</li>
-          <li><strong>Accès verrouillé</strong> : sans la bonne clé, le serveur refuse même de fournir les données chiffrées. 10 essais ratés = transfert détruit.</li>
-          <li><strong>Intégrité garantie</strong> : toute altération, troncature ou réordonnancement des blocs est détecté.</li>
-          <li><strong>Autodestruction</strong> à expiration ou après le nombre de téléchargements choisi.</li>
-          <li>Noms et tailles de fichiers chiffrés aussi. Aucun compte, aucun traceur, aucun script tiers.</li>
-        </ul>
       </div>
     </section>
+
+    <!-- ===================== FONCTIONNALITÉS ===================== -->
+    <section class="features">
+      <article class="feature">
+        <header>
+          <span class="feat-icon blue" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg></span>
+          <div><h2>La conversion, simplifiée</h2><p>Documents, images, vidéos et audio.</p></div>
+        </header>
+        <div class="types" aria-hidden="true">
+          <span data-icon="pdf"><b>PDF</b></span><span data-icon="docx"><b>DOCX</b></span><span data-icon="xlsx"><b>XLSX</b></span>
+          <span data-icon="pptx"><b>PPTX</b></span><span data-icon="jpg"><b>JPG</b></span><span data-icon="mp4"><b>MP4</b></span>
+          <span data-icon="mp3"><b>MP3</b></span><span data-icon="png"><b>PNG</b></span><span data-icon="heic"><b>HEIC</b></span>
+          <span data-icon="odt"><b>ODT</b></span><span data-icon="md"><b>MD</b></span><span class="dots"><b>+ 60</b></span>
+        </div>
+        <a class="more" href="#formats">Voir les 70 formats pris en charge</a>
+      </article>
+
+      <article class="feature">
+        <header>
+          <span class="feat-icon green" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M11 3v2h2v2h-2v2h2v2h-2"/><rect x="10" y="13" width="4" height="5" rx="1"/></svg></span>
+          <div><h2>Vos dossiers, en un ZIP</h2><p>Regroupez et compressez en quelques clics.</p></div>
+        </header>
+        <div class="zip-art" aria-hidden="true">
+          <span class="stack"><span data-icon="docx"></span><span data-icon="docx"></span><span data-icon="xlsx"></span><span class="folder"></span></span>
+          <span class="zarrow">→</span>
+          <span class="zipfile" data-icon="zip"><b>ZIP</b></span>
+        </div>
+      </article>
+
+      <article class="feature">
+        <header>
+          <span class="feat-icon purple" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></span>
+          <div><h2>Le partage sous contrôle</h2><p>Mot de passe, expiration et limite de téléchargements.</p></div>
+        </header>
+        <div class="share-art" aria-hidden="true">
+          <div class="fake-link"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>convertor.jbleroy.fr/t/3f9K7a…</div>
+          <p class="share-meta">🔒 Mot de passe activé · Expire dans 7 jours · 5 téléchargements</p>
+          <div class="privacy">
+            <strong>Options de confidentialité</strong>
+            <span class="opt">Mot de passe <i class="toggle on"></i></span>
+            <span class="opt">Expiration du lien <i class="toggle on"></i></span>
+            <span class="opt">Suppression automatique <i class="toggle on"></i></span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ===================== SÉCURITÉ ===================== -->
+    <section class="security" id="securite">
+      <h2>Une sécurité sans compromis</h2>
+      <div class="sec-grid">
+        <div><b>Chiffrement de bout en bout</b><p>AES-256-GCM, directement dans votre navigateur. Le serveur ne stocke que des données illisibles, noms de fichiers compris.</p></div>
+        <div><b>La clé reste dans le lien</b><p>Elle se trouve après le <code>#</code>, une partie de l'adresse que les navigateurs n'envoient jamais au serveur.</p></div>
+        <div><b>Mot de passe renforcé</b><p>PBKDF2 à 600 000 itérations, combiné à la clé du lien : il faut les deux pour ouvrir le fichier.</p></div>
+        <div><b>Accès verrouillé</b><p>Sans la bonne clé, le serveur refuse même de fournir les données chiffrées. 10 essais ratés et le transfert est détruit.</p></div>
+        <div><b>Intégrité garantie</b><p>Toute altération, coupure ou réorganisation du fichier est détectée au déchiffrement.</p></div>
+        <div><b>Autodestruction</b><p>À l'expiration ou après le nombre de téléchargements choisi. Conversions effacées dès la fin. Aucun cookie, aucun traceur.</p></div>
+      </div>
+    </section>
+
+    <details class="formats" id="formats">
+      <summary>Tous les formats pris en charge</summary>
+      <div id="formats-table"></div>
+    </details>
   </main>
 
-  <footer class="muted small">Convertor · convertor.jbleroy.fr</footer>
+  <footer class="muted small">convertor · convertor.jbleroy.fr</footer>
 
   <script src="/vendor/fflate.js"></script>
   <script src="/js/crypto.js"></script>
+  <script src="/js/icons.js"></script>
   <script src="/js/common.js"></script>
   <script src="/js/convert.js"></script>
   <script src="/js/send.js"></script>

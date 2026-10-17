@@ -5,21 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Fichier reçu — Convertor</title>
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="light">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="receive">
-  <header class="top">
-    <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28"> Convertor</a>
-    <span class="muted small">🔒 Transfert chiffré de bout en bout</span>
+  <header class="site">
+    <div class="site-inner">
+      <a class="logo" href="/" aria-label="Convertor, accueil">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 19a12 12 0 0 1 20.5-8.5" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/><path d="M24 4.5l6.5 6.5-8 2.5z" fill="currentColor"/><path d="M32 21a12 12 0 0 1-20.5 8.5" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/><path d="M16 35.5L9.5 29l8-2.5z" fill="currentColor"/></svg>
+        <span>convertor</span>
+      </a>
+      <span class="badge-secure">🔒 Chiffré de bout en bout</span>
+    </div>
   </header>
 
-  <main>
-    <div class="hero">
-      <h1>Vous avez reçu un fichier</h1>
-      <p>Il sera déchiffré directement dans votre navigateur. Le serveur n'a jamais eu accès à son contenu.</p>
-    </div>
+  <main class="receive-main">
+    <section class="hero">
+      <p class="eyebrow">Transfert sécurisé</p>
+      <h1>Vous avez reçu <span>un fichier</span></h1>
+      <p class="lead">Il sera déchiffré directement dans votre navigateur. Le serveur n'a jamais eu accès à son contenu.</p>
+    </section>
 
     <div class="card" id="loading">
       <div class="progress"><div class="bar indeterminate"><span></span></div><p class="status">Vérification du lien…</p></div>
@@ -31,20 +38,27 @@
         <label>Mot de passe
           <input type="password" id="password" autocomplete="off" required autofocus>
         </label>
-        <div class="actions"><button class="btn primary" id="unlock">Déverrouiller</button></div>
+        <div class="actions"><button class="btn primary go" id="unlock">Déverrouiller</button></div>
       </form>
     </div>
 
     <div class="card" id="file-card" hidden>
-      <p class="muted small">Fichier</p>
-      <p class="filename" id="file-name"></p>
-      <p class="muted" id="file-info"></p>
+      <div class="file-head">
+        <span id="file-icon"></span>
+        <div class="fmeta">
+          <p class="filename" id="file-name"></p>
+          <span class="muted small" id="file-info"></span>
+        </div>
+      </div>
       <details id="file-list-box" hidden>
-        <summary>Contenu de l'archive</summary>
+        <summary class="small">Contenu de l'archive</summary>
         <ul class="meta-list" id="file-list"></ul>
       </details>
       <div class="actions">
-        <button class="btn primary" id="download">Télécharger et déchiffrer</button>
+        <button class="btn primary go" id="download">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          Télécharger et déchiffrer
+        </button>
       </div>
       <div class="progress" id="dl-progress" hidden>
         <div class="bar"><span></span></div>
@@ -54,12 +68,11 @@
 
     <div class="alert" id="error" role="alert" hidden></div>
 
-    <p class="muted small center">
-      Vous aussi, envoyez des fichiers en toute sécurité : <a href="/#transfert">Convertor</a>
-    </p>
+    <p class="muted small center">Vous aussi, envoyez des fichiers en toute sécurité : <a href="/#transfert">convertor</a></p>
   </main>
 
   <script src="/js/crypto.js"></script>
+  <script src="/js/icons.js"></script>
   <script src="/js/common.js"></script>
   <script src="/js/receive.js"></script>
 </body>

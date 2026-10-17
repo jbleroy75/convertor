@@ -1,7 +1,8 @@
 /* Page de réception : /t/<id>#<secret> */
 (function () {
   'use strict';
-  const { $, el, formatBytes, formatDate, showError, saveBlob, apiJson, setProgress, speedometer } = window.UI;
+  const UI = window.UI;
+  const { $, el, setChildren, formatBytes, formatDate, showError, saveBlob, apiJson, setProgress, speedometer } = window.UI;
   const C = window.ConvertorCrypto;
 
   const id = location.pathname.split('/')[2] || '';
@@ -82,13 +83,15 @@
     $('#loading').hidden = true;
     $('#file-card').hidden = false;
     $('#file-name').textContent = meta.name;
+    $('#file-icon').replaceChildren(window.FileIcons.node(UI.extOf(meta.name)));
     document.title = `${meta.name} — Convertor`;
     $('#file-info').textContent =
       `${formatBytes(meta.size)} · disponible jusqu’au ${formatDate(opened.expiresAt)} · ` +
       `${opened.downloadsLeft} téléchargement(s) restant(s)`;
     if (meta.zipped && meta.files?.length) {
       $('#file-list-box').hidden = false;
-      $('#file-list').replaceChildren(
+      setChildren(
+        $('#file-list'),
         ...meta.files.map((f) => el('li', {}, el('span', {}, f.name), el('span', {}, formatBytes(f.size)))),
         meta.fileCount > meta.files.length ? el('li', {}, el('span', {}, `… et ${meta.fileCount - meta.files.length} autres`), el('span')) : null
       );

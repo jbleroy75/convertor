@@ -1,7 +1,7 @@
 /* Onglet « Transfert sécurisé » : chiffrement dans le navigateur puis envoi par blocs. */
 (function () {
   'use strict';
-  const { $, el, formatBytes, formatDate, setupDrop, showError, apiJson, setProgress, speedometer } = window.UI;
+  const { $, el, setChildren, formatBytes, formatDate, setupDrop, showError, apiJson, setProgress, speedometer } = window.UI;
   const C = window.ConvertorCrypto;
 
   const PARALLEL_UPLOADS = 3;
@@ -45,18 +45,19 @@
 
   function render() {
     const shown = files.slice(0, 200);
-    list.replaceChildren(
+    setChildren(
+      list,
       ...shown.map((f, i) =>
         el(
           'li',
           {},
-          el('span', { class: 'name', title: pathOf(f) }, pathOf(f)),
-          el('span', { class: 'size' }, formatBytes(f.size)),
-          el('button', { class: 'rm', 'aria-label': `Retirer ${f.name}`, onclick: () => (files.splice(i, 1), render()) }, '×')
+          window.FileIcons.node(window.UI.extOf(f.name)),
+          el('span', { class: 'fmeta' }, el('span', { class: 'name', title: pathOf(f) }, pathOf(f)), el('span', { class: 'size' }, formatBytes(f.size))),
+          el('button', { class: 'rm', type: 'button', 'aria-label': `Retirer ${f.name}`, onclick: () => (files.splice(i, 1), render()) }, '×')
         )
       ),
-      files.length > shown.length ? el('li', { class: 'muted' }, `… et ${files.length - shown.length} autres fichiers`) : null,
-      files.length > 1 ? el('li', { class: 'muted' }, `${files.length} fichiers · ${formatBytes(totalSize())} au total`) : null
+      files.length > shown.length ? el('li', { class: 'note' }, `… et ${files.length - shown.length} autres fichiers`) : null,
+      files.length > 1 ? el('li', { class: 'note' }, `${files.length} fichiers · ${formatBytes(totalSize())} au total · seront regroupés dans un ZIP chiffré`) : null
     );
     options.hidden = !files.length;
     zipBox.disabled = files.length > 1;
@@ -423,7 +424,7 @@
           .then((s) => (status.textContent = `${s.downloads} / ${s.maxDownloads} téléchargement(s)`))
           .catch(() => {
             status.textContent = 'expiré ou supprimé';
-            li.style.opacity = '.6';
+            li.classList.add('gone');
           });
         return li;
       })

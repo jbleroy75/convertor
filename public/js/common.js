@@ -107,6 +107,11 @@
     };
   }
 
+  /** Comme replaceChildren, mais ignore les enfants null/undefined (sinon ils deviennent du texte « null »). */
+  function setChildren(node, ...children) {
+    node.replaceChildren(...children.flat().filter((c) => c != null));
+  }
+
   function el(tag, attrs = {}, ...children) {
     const node = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
@@ -118,24 +123,46 @@
     return node;
   }
 
-  // Onglets (si présents) : l'URL #transfert ouvre directement le transfert.
+  // Onglets : convert / zip / transfer. Les liens #convertir, #zip, #transfert du menu y mènent.
+  const HASH_TO_MODE = { '#convertir': 'convert', '#zip': 'zip', '#transfert': 'transfer' };
+  const MODE_TO_HASH = { convert: '#convertir', zip: '#zip', transfer: '#transfert' };
+
   function initTabs() {
-    const tabs = [...document.querySelectorAll('[role=tab]')];
+    const tabs = [...document.querySelectorAll('[role=tab][data-tab]')];
     if (!tabs.length) return;
-    const select = (tab, push) => {
-      tabs.forEach((t) => {
-        const on = t === tab;
-        t.setAttribute('aria-selected', String(on));
-        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    const select = (mode, scroll) => {
+      tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === mode)));
+      document.getElementById('panel-files').hidden = mode === 'transfer';
+      document.getElementById('panel-transfer').hidden = mode !== 'transfer';
+      document.querySelectorAll('.mainnav a').forEach((a) => {
+        if (HASH_TO_MODE[a.getAttribute('href')] === mode) a.setAttribute('aria-current', 'page');
+        else a.removeAttribute('aria-current');
       });
-      if (push) history.replaceState(null, '', tab.id === 'tab-transfer' ? '#transfert' : location.pathname);
+      window.UI.mode = mode;
+      document.dispatchEvent(new CustomEvent('modechange', { detail: mode }));
+      if (scroll) document.getElementById('outil').scrollIntoView({ block: 'start' });
     };
-    tabs.forEach((t) => t.addEventListener('click', () => select(t, true)));
-    const fromHash = () => select(document.getElementById(location.hash === '#transfert' ? 'tab-transfer' : 'tab-convert'), false);
-    window.addEventListener('hashchange', fromHash);
-    fromHash();
+    tabs.forEach((t) =>
+      t.addEventListener('click', () => {
+        history.replaceState(null, '', MODE_TO_HASH[t.dataset.tab]);
+        select(t.dataset.tab, false);
+      })
+    );
+    const fromHash = (scroll) => {
+      const mode = HASH_TO_MODE[location.hash];
+      if (mode) select(mode, scroll);
+      else if (!window.UI.mode) select('convert', false);
+    };
+    window.addEventListener('hashchange', () => fromHash(true));
+    // Re-cliquer sur le lien déjà actif doit aussi ramener à l'outil.
+    document.querySelectorAll('a[href^="#"]').forEach((a) =>
+      a.addEventListener('click', () => {
+        if (a.getAttribute('href') === location.hash && HASH_TO_MODE[location.hash]) fromHash(true);
+      })
+    );
+    fromHash(!!HASH_TO_MODE[location.hash]);
   }
 
-  window.UI = { $, el, formatBytes, formatDuration, formatDate, extOf, setupDrop, showError, saveBlob, apiJson, setProgress, speedometer };
+  window.UI = { mode: null, $, el, setChildren, formatBytes, formatDuration, formatDate, extOf, setupDrop, showError, saveBlob, apiJson, setProgress, speedometer };
   document.addEventListener('DOMContentLoaded', initTabs);
 })();
