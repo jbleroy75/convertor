@@ -123,9 +123,10 @@
     return node;
   }
 
-  // Onglets : convert / zip / transfer. Les liens #convertir, #zip, #transfert du menu y mènent.
-  const HASH_TO_MODE = { '#convertir': 'convert', '#zip': 'zip', '#transfert': 'transfer' };
-  const MODE_TO_HASH = { convert: '#convertir', zip: '#zip', transfer: '#transfert' };
+  // Onglets : convert / compress / tools / transfer. Les liens du menu y mènent
+  // (#zip, ancien lien, ouvre l'onglet Outils sur « Créer un ZIP »).
+  const HASH_TO_MODE = { '#convertir': 'convert', '#compresser': 'compress', '#outils': 'tools', '#zip': 'tools', '#transfert': 'transfer' };
+  const MODE_TO_HASH = { convert: '#convertir', compress: '#compresser', tools: '#outils', transfer: '#transfert' };
 
   function initTabs() {
     const tabs = [...document.querySelectorAll('[role=tab][data-tab]')];

@@ -8,6 +8,7 @@ const { securityHeaders } = require('./security');
 const { TransferStore } = require('./transfers/store');
 const convertRouter = require('./routes/convert');
 const transfersRouter = require('./routes/transfers');
+const toolsRouter = require('./routes/tools');
 
 async function createApp({ store } = {}) {
   await fsp.mkdir(config.tmpDir, { recursive: true, mode: 0o700 });
@@ -23,6 +24,7 @@ async function createApp({ store } = {}) {
   app.get('/healthz', (req, res) => res.json({ ok: true }));
   app.use('/api', convertRouter);
   app.use('/api/transfers', transfersRouter(store));
+  app.use('/api/tools', toolsRouter);
   app.use('/api', (req, res) => res.status(404).json({ error: 'Introuvable' }));
 
   app.get('/vendor/fflate.js', (req, res) =>

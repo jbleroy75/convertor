@@ -6,7 +6,7 @@ ARG TARGETARCH
 # Moteurs de conversion. Pandoc officiel (celui de Debian casse --sandbox pour docx/odt/epub).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ffmpeg imagemagick libheif1 poppler-utils librsvg2-bin \
+      ffmpeg imagemagick libheif1 poppler-utils librsvg2-bin ghostscript \
       libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw \
       fonts-dejavu fonts-liberation fonts-noto-core fonts-noto-color-emoji \
       ca-certificates curl tini \

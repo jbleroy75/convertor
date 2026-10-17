@@ -17,6 +17,18 @@ Destiné à `https://convertor.jbleroy.fr`.
 - Plusieurs fichiers d'un coup, résultat en **ZIP**, ou **« ZIP sans conversion »**
 - Les fichiers sont supprimés du serveur dès la réponse envoyée
 
+### Compression
+- **Photos** (JPG, PNG, WebP, HEIC…) : réduction de taille et de qualité, métadonnées (GPS, appareil) supprimées
+- **Vidéos** → MP4 H.264 plus léger (résolution max réglable), **audio** → MP3, **PDF** via Ghostscript
+- Trois niveaux (légère, équilibrée, forte) + réglages avancés ; gain affiché fichier par fichier
+- Si le résultat n'est pas plus léger, le fichier d'origine est rendu tel quel
+
+### Outils
+- **PDF** : fusionner (ordre réglable), extraire des pages (`1-3, 5, 8-`), découper en une page par fichier
+- **Images** : réunir en un seul PDF, redimensionner (%, largeur ou hauteur), faire pivoter
+- **Vidéo / audio** : couper un extrait (début / fin)
+- **ZIP** : regrouper n'importe quels fichiers
+
 ### Transfert sécurisé
 - **Chiffrement de bout en bout dans le navigateur** (AES-256-GCM, blocs de 8 Mio) : le serveur ne voit jamais le contenu, ni le nom des fichiers
 - **La clé est dans le fragment du lien** (`/t/<id>#<clé>`), jamais envoyé au serveur ; `Referrer-Policy: no-referrer`
@@ -91,7 +103,7 @@ Le `docker-compose.yml` (avec Caddy) reste disponible pour héberger le site sur
 
 ## Développement
 
-Outils requis en local : Node 20+, `ffmpeg`, `imagemagick`, `libreoffice`, `poppler-utils`, `librsvg2-bin`, et le binaire officiel de [pandoc](https://github.com/jgm/pandoc/releases) (celui de Debian/Ubuntu casse `--sandbox` pour docx/odt/epub ; indiquer son chemin via `PANDOC_BIN`).
+Outils requis en local : Node 20+, `ffmpeg`, `imagemagick`, `libreoffice`, `poppler-utils`, `ghostscript`, `librsvg2-bin`, et le binaire officiel de [pandoc](https://github.com/jgm/pandoc/releases) (celui de Debian/Ubuntu casse `--sandbox` pour docx/odt/epub ; indiquer son chemin via `PANDOC_BIN`).
 
 ```bash
 npm install
@@ -106,6 +118,8 @@ server/
   index.js              application Express, en-têtes de sécurité
   convert/index.js      règles de conversion et moteurs (ffmpeg, ImageMagick, LibreOffice, pandoc, poppler, JS)
   routes/convert.js     POST /api/convert, GET /api/formats
+  tools/index.js        compression et outils PDF / images / médias (options validées)
+  routes/tools.js       GET /api/tools, POST /api/tools/:id
   routes/transfers.js   API de transfert (le serveur ne manipule que des blocs chiffrés)
   transfers/store.js    stockage disque + nettoyage
 public/

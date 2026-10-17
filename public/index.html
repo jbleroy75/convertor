@@ -19,7 +19,8 @@
       </a>
       <nav class="mainnav" aria-label="Navigation principale">
         <a href="#convertir">Convertir</a>
-        <a href="#zip">Compresser</a>
+        <a href="#compresser">Compresser</a>
+        <a href="#outils">Outils</a>
         <a href="#transfert">Transférer</a>
         <a href="#securite">Sécurité</a>
       </nav>
@@ -51,9 +52,13 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M14 3l5 5M14 3v5h5M19 8v3M9 9h2M9 13h5M9 17h2"/><path d="M15 15h6v6h-6zM18 13v2"/></svg>
           Convertir un fichier
         </button>
-        <button role="tab" data-tab="zip" id="tab-zip" aria-selected="false" aria-controls="panel-files">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18H6z"/><path d="M11 3v2h2v2h-2v2h2v2h-2"/><rect x="10" y="13" width="4" height="5" rx="1"/></svg>
-          Créer un ZIP
+        <button role="tab" data-tab="compress" id="tab-compress" aria-selected="false" aria-controls="panel-files">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
+          Compresser
+        </button>
+        <button role="tab" data-tab="tools" id="tab-tools" aria-selected="false" aria-controls="panel-files">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-2-2 6.7-6.7a4 4 0 0 1-5-5zM3 21l6-6M6 9 3 6l3-3 3 3"/></svg>
+          Outils
         </button>
         <button role="tab" data-tab="transfer" id="tab-transfer" aria-selected="false" aria-controls="panel-transfer">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/></svg>
@@ -61,7 +66,7 @@
         </button>
       </div>
 
-      <!-- Conversion & ZIP : même zone de fichiers -->
+      <!-- Convertir, Compresser et Outils : même zone de fichiers -->
       <div id="panel-files" role="tabpanel" class="panel">
         <label class="drop" id="convert-drop">
           <input type="file" id="convert-input" multiple hidden>
@@ -76,6 +81,56 @@
         </label>
 
         <ul class="file-rows" id="convert-files"></ul>
+
+        <!-- Compresser -->
+        <div class="mode-opts" id="compress-options" hidden>
+          <h2 class="step">Niveau de compression</h2>
+          <div class="levels" role="radiogroup" aria-label="Niveau de compression">
+            <button type="button" role="radio" data-level="light" aria-checked="false"><b>Légère</b><span>Qualité quasi intacte</span></button>
+            <button type="button" role="radio" data-level="balanced" aria-checked="true"><b>Équilibrée</b><span>Le meilleur compromis</span></button>
+            <button type="button" role="radio" data-level="strong" aria-checked="false"><b>Forte</b><span>Le plus léger possible</span></button>
+          </div>
+          <details class="advanced">
+            <summary>Réglages avancés</summary>
+            <div class="grid">
+              <label>Taille max des photos
+                <select id="compress-max-image">
+                  <option value="">Automatique</option>
+                  <option value="0">Taille d'origine</option>
+                  <option value="3840">3840 px (4K)</option>
+                  <option value="2560">2560 px</option>
+                  <option value="1920">1920 px (Full HD)</option>
+                  <option value="1280">1280 px</option>
+                  <option value="800">800 px</option>
+                </select>
+              </label>
+              <label>Résolution max des vidéos
+                <select id="compress-max-video">
+                  <option value="">Automatique</option>
+                  <option value="0">Résolution d'origine</option>
+                  <option value="2160">2160p (4K)</option>
+                  <option value="1080">1080p (Full HD)</option>
+                  <option value="720">720p</option>
+                  <option value="480">480p</option>
+                </select>
+              </label>
+            </div>
+            <p class="muted small">Photos (JPG, PNG, WebP, HEIC…), vidéos, audio et PDF. Les métadonnées des photos (GPS, appareil) sont supprimées. Les vidéos ressortent en MP4, l’audio en MP3 et les GIF animés en MP4 (bien plus léger).</p>
+          </details>
+        </div>
+
+        <!-- Outils -->
+        <div class="mode-opts" id="tools-options" hidden>
+          <h2 class="step">Choisissez un outil</h2>
+          <div class="tool-grid" id="tool-grid" role="radiogroup" aria-label="Outil"></div>
+          <div class="tool-form" id="tool-form"></div>
+        </div>
+
+        <div class="actions run-actions" id="run-actions" hidden>
+          <button class="btn primary go" id="run-go" disabled>Lancer</button>
+          <button class="link-btn" id="run-clear" type="button">Tout retirer</button>
+        </div>
+        <ul class="savings" id="compress-results" hidden></ul>
 
         <div class="actionbar" id="convert-options" hidden>
           <div class="summary" id="convert-summary"></div>
@@ -207,7 +262,7 @@
       <article class="feature">
         <header>
           <span class="feat-icon green" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M11 3v2h2v2h-2v2h2v2h-2"/><rect x="10" y="13" width="4" height="5" rx="1"/></svg></span>
-          <div><h2>Vos dossiers, en un ZIP</h2><p>Regroupez et compressez en quelques clics.</p></div>
+          <div><h2>Plus léger, en un clic</h2><p>Compressez photos, vidéos et PDF, ou regroupez tout en un ZIP.</p></div>
         </header>
         <div class="zip-art" aria-hidden="true">
           <span class="stack"><span data-icon="docx"></span><span data-icon="docx"></span><span data-icon="xlsx"></span><span class="folder"></span></span>
