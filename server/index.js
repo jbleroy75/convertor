@@ -26,13 +26,22 @@ async function createApp({ store } = {}) {
   app.use('/api', (req, res) => res.status(404).json({ error: 'Introuvable' }));
 
   app.get('/vendor/fflate.js', (req, res) =>
-    res.sendFile(path.join(__dirname, '..', 'node_modules', 'fflate', 'umd', 'index.js'), { maxAge: '7d', headers: { 'Content-Type': 'text/javascript; charset=utf-8' } })
+    res.sendFile(path.join(__dirname, '..', 'node_modules', 'fflate', 'umd', 'index.js'), { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } })
   );
   // Page de réception : /t/<id>#<clé>  (la clé, dans le fragment, n'est jamais envoyée au serveur).
   app.get('/t/:id', (req, res) => res.sendFile(path.join(pub, 'receive.html'), { headers: { 'Cache-Control': 'no-store' } }));
   // Le service worker de téléchargement doit pouvoir contrôler tout le site.
   app.get('/sw.js', (req, res) => res.sendFile(path.join(pub, 'sw.js'), { headers: { 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' } }));
-  app.use(express.static(pub, { index: 'index.html', maxAge: '1h' }));
+  app.use(
+    express.static(pub, {
+      index: 'index.html',
+      setHeaders(res, file) {
+        // Polices et icône : immuables. Pages, scripts et styles : toujours revalidés (ETag),
+        // sinon un navigateur peut garder une ancienne version après un déploiement.
+        res.set('Cache-Control', /\.(woff2|svg)$/.test(file) ? 'public, max-age=604800' : 'no-cache');
+      },
+    })
+  );
 
   app.use((err, req, res, next) => {
     console.error(err);
