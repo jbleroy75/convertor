@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const UI = window.UI;
-  const { $, el, setChildren, formatBytes, formatDate, showError, saveBlob, apiJson, setProgress, speedometer } = window.UI;
+  const { $, el, setChildren, formatBytes, formatDate, showError, apiJson, setProgress, speedometer } = window.UI;
   const C = window.ConvertorCrypto;
 
   const id = location.pathname.split('/')[2] || '';
@@ -12,9 +12,18 @@
   let opened = null;
   let meta = null;
 
+  // Safari (iPhone, iPad, Mac) ne sait pas recevoir un téléchargement diffusé par un service worker :
+  // on y déchiffre en mémoire puis on propose un vrai bouton « Enregistrer ».
+  const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const IS_SAFARI = /^((?!chrome|chromium|crios|fxios|edg|android).)*safari/i.test(navigator.userAgent);
+  const CAN_STREAM = !IS_IOS && !IS_SAFARI;
+  // Au-delà, un iPhone risque de manquer de mémoire pour assembler le fichier.
+  const IOS_MEMORY_WARN = 1024 ** 3;
+  const SW_STALL_MS = 15000;
+
   // Prépare le service worker de déchiffrement en flux (indispensable pour les très gros fichiers).
   const swReady =
-    'serviceWorker' in navigator && window.isSecureContext
+    CAN_STREAM && 'serviceWorker' in navigator && window.isSecureContext
       ? navigator.serviceWorker
           .register('/sw.js', { scope: '/' })
           .then(() => navigator.serviceWorker.ready)
@@ -101,6 +110,9 @@
 
   $('#download').addEventListener('click', async () => {
     const btn = $('#download');
+    if (!CAN_STREAM && meta.size > IOS_MEMORY_WARN &&
+        !confirm(`Ce fichier fait ${formatBytes(meta.size)}. Sur ${IS_IOS ? 'iPhone/iPad' : 'Safari'}, il doit tenir en mémoire et le téléchargement peut échouer. Pour les très gros fichiers, ouvrez plutôt le lien sur un ordinateur avec Chrome ou Firefox. Continuer quand même ?`))
+      return;
     btn.disabled = true;
     showError(error, '');
     const prog = $('#dl-progress');
@@ -109,9 +121,25 @@
       const { ticket, downloadsLeft } = await apiJson(`/api/transfers/${encodeURIComponent(id)}/claim`, { method: 'POST', headers: authHeaders() });
       const reg = await swReady;
       const job = { transferId: id, ticket, chunkCount: opened.chunkCount, size: meta.size, filename: meta.name, fileKey: keys.fileKey };
-      if (reg?.active) await viaServiceWorker(reg.active, job, prog);
-      else await inMemory(job, prog);
-      setProgress(prog, 1, `✅ Fichier déchiffré et enregistré (${formatBytes(meta.size)}). Intégrité vérifiée.` + (downloadsLeft ? '' : ' Ce lien est maintenant détruit.'));
+      const destroyed = downloadsLeft ? '' : ' Ce lien est maintenant détruit.';
+      let streamed = false;
+      if (reg?.active) {
+        try {
+          await viaServiceWorker(reg.active, job, prog);
+          streamed = true;
+        } catch (e) {
+          if (!e.stalled) throw e;
+          // Le service worker ne répond pas : repli en mémoire avec le même ticket.
+        }
+      }
+      if (streamed) {
+        setProgress(prog, 1, `✅ Fichier déchiffré et enregistré (${formatBytes(meta.size)}). Intégrité vérifiée.` + destroyed);
+      } else {
+        const blob = await inMemory(job, prog);
+        offerSave(blob, job.filename);
+        setProgress(prog, 1, `✅ Fichier déchiffré (${formatBytes(meta.size)}), intégrité vérifiée.${IS_IOS ? ' Appuyez sur « Enregistrer le fichier ».' : ''}` + destroyed);
+        btn.hidden = true;
+      }
     } catch (e) {
       prog.hidden = true;
       showError(error, `Échec du téléchargement : ${e.message}`);
@@ -126,7 +154,15 @@
       const dlId = C.b64urlEncode(C.randomBytes(16));
       const speed = speedometer();
       let iframe;
+      // Délai de secours limité au DÉMARRAGE : une fois que le worker a pris le téléchargement en main
+      // (« started »), un bloc lent n'est plus une raison de basculer en mémoire.
+      const watchdog = setTimeout(() => {
+        channel.port1.close();
+        iframe?.remove();
+        reject(Object.assign(new Error('Le service worker ne répond pas'), { stalled: true }));
+      }, SW_STALL_MS);
       channel.port1.onmessage = ({ data }) => {
+        if (data.type !== 'ready') clearTimeout(watchdog);
         if (data.type === 'ready') {
           iframe = el('iframe', { hidden: true, src: `/__dl/${dlId}` });
           document.body.append(iframe);
@@ -167,7 +203,36 @@
       setProgress(prog, written / Math.max(job.size, 1), `Téléchargement et déchiffrement : ${speed(written, job.size)}`);
     }
     if (written !== job.size) throw new Error('Taille finale incohérente');
-    saveBlob(new Blob(parts, { type: 'application/octet-stream' }), job.filename);
+    return new Blob(parts, { type: meta.type || 'application/octet-stream' });
+  }
+
+  /**
+   * Propose l'enregistrement du fichier déchiffré : un vrai lien (geste de l'utilisateur, indispensable
+   * sur iPhone) et, si possible, le partage natif (« Enregistrer dans Fichiers / Photos »).
+   */
+  function offerSave(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const box = $('#save-actions');
+    const link = el('a', { class: 'btn primary go', href: url, download: filename }, 'Enregistrer le fichier');
+    const nodes = [link];
+    const file = new File([blob], filename, { type: blob.type });
+    if (navigator.canShare?.({ files: [file] })) {
+      nodes.push(
+        el(
+          'button',
+          {
+            class: 'btn ghost',
+            type: 'button',
+            onclick: () => navigator.share({ files: [file] }).catch((e) => e.name !== 'AbortError' && showError(error, `Partage impossible : ${e.message}`)),
+          },
+          IS_IOS ? 'Partager / Enregistrer dans Fichiers' : 'Partager'
+        )
+      );
+    }
+    box.replaceChildren(...nodes);
+    box.hidden = false;
+    // Hors iPhone, le téléchargement démarre tout seul ; le bouton reste là au cas où.
+    if (!IS_IOS) link.click();
   }
 
   start().catch((e) => fail(e.message));
