@@ -9,7 +9,12 @@ const REQUIRED = {
   convert: 'ImageMagick (images)',
   ffmpeg: 'FFmpeg (audio / vidéo)',
   soffice: 'LibreOffice (documents Office)',
-  pdftoppm: 'Poppler (PDF)',
+  // Poppler : chaque commande utilisée par l'application.
+  pdftoppm: 'Poppler (PDF → images)',
+  pdftotext: 'Poppler (PDF → texte)',
+  pdfinfo: 'Poppler (infos PDF)',
+  pdfunite: 'Poppler (fusion PDF)',
+  pdfseparate: 'Poppler (découpe PDF)',
   gs: 'Ghostscript (compression PDF)',
   'rsvg-convert': 'librsvg (SVG)',
   pandoc: 'pandoc (Markdown / HTML / EPUB)',
