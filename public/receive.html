@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Fichier reçu — Convertor</title>
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="receive">
+  <header class="top">
+    <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28"> Convertor</a>
+    <span class="muted small">🔒 Transfert chiffré de bout en bout</span>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>Vous avez reçu un fichier</h1>
+      <p>Il sera déchiffré directement dans votre navigateur. Le serveur n'a jamais eu accès à son contenu.</p>
+    </div>
+
+    <div class="card" id="loading">
+      <div class="progress"><div class="bar indeterminate"><span></span></div><p class="status">Vérification du lien…</p></div>
+    </div>
+
+    <div class="card" id="password-card" hidden>
+      <h2>🔑 Ce transfert est protégé par un mot de passe</h2>
+      <form id="password-form">
+        <label>Mot de passe
+          <input type="password" id="password" autocomplete="off" required autofocus>
+        </label>
+        <div class="actions"><button class="btn primary" id="unlock">Déverrouiller</button></div>
+      </form>
+    </div>
+
+    <div class="card" id="file-card" hidden>
+      <p class="muted small">Fichier</p>
+      <p class="filename" id="file-name"></p>
+      <p class="muted" id="file-info"></p>
+      <details id="file-list-box" hidden>
+        <summary>Contenu de l'archive</summary>
+        <ul class="meta-list" id="file-list"></ul>
+      </details>
+      <div class="actions">
+        <button class="btn primary" id="download">Télécharger et déchiffrer</button>
+      </div>
+      <div class="progress" id="dl-progress" hidden>
+        <div class="bar"><span></span></div>
+        <p class="status"></p>
+      </div>
+    </div>
+
+    <div class="alert" id="error" role="alert" hidden></div>
+
+    <p class="muted small center">
+      Vous aussi, envoyez des fichiers en toute sécurité : <a href="/#transfert">Convertor</a>
+    </p>
+  </main>
+
+  <script src="/js/crypto.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/receive.js"></script>
+</body>
+</html>

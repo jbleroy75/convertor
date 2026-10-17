@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policymap [
+  <!ELEMENT policymap (policy)*>
+  <!ATTLIST policymap xmlns CDATA #FIXED ''>
+  <!ELEMENT policy EMPTY>
+  <!ATTLIST policy xmlns CDATA #FIXED '' domain NMTOKEN #REQUIRED
+    name NMTOKEN #IMPLIED pattern CDATA #IMPLIED rights NMTOKEN #IMPLIED
+    stealth NMTOKEN #IMPLIED value CDATA #IMPLIED>
+]>
+<policymap>
+  <policy domain="resource" name="memory" value="1GiB"/>
+  <policy domain="resource" name="map" value="2GiB"/>
+  <policy domain="resource" name="disk" value="8GiB"/>
+  <policy domain="resource" name="width" value="32KP"/>
+  <policy domain="resource" name="height" value="32KP"/>
+  <policy domain="resource" name="area" value="256MP"/>
+  <policy domain="resource" name="list-length" value="2000"/>
+  <policy domain="resource" name="time" value="600"/>
+  <!-- Aucun programme externe (Ghostscript & co). -->
+  <policy domain="delegate" rights="none" pattern="*"/>
+  <!-- Coders dangereux ou inutiles : réseau, scripts, PostScript, texte arbitraire. -->
+  <policy domain="coder" rights="none" pattern="{URL,HTTP,HTTPS,FTP,MVG,MSL,TEXT,LABEL,CAPTION,PANGO,SHOW,WIN,X,PLT,EPHEMERAL,INLINE,PS,PS2,PS3,EPS,EPI,EPSI,EPSF,XPS,SVG,MSVG,RSVG}"/>
+  <!-- Pas de lecture indirecte de fichiers via « @liste ». -->
+  <policy domain="path" rights="none" pattern="@*"/>
+</policymap>

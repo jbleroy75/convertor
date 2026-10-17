@@ -1,0 +1,30 @@
+{
+  "name": "convertor",
+  "version": "1.0.0",
+  "description": "Convertisseur de fichiers universel + transfert chiffré de bout en bout",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jbleroy75/convertor.git"
+  },
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/jbleroy75/convertor/issues"
+  },
+  "homepage": "https://github.com/jbleroy75/convertor#readme",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "express": "^4.22.3",
+    "fflate": "^0.8.3",
+    "multer": "^2.4.0",
+    "yaml": "^2.9.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
