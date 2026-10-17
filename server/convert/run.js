@@ -2,6 +2,7 @@
 
 const { spawn } = require('child_process');
 const config = require('../config');
+const { resolveCommand } = require('./binaries');
 
 /** Sémaphore pour limiter les conversions lourdes simultanées. */
 class Semaphore {
@@ -40,6 +41,7 @@ const slots = new Semaphore(config.convert.concurrency);
  * Rejette avec la fin de stderr si le code de sortie n'est pas 0.
  */
 function run(cmd, args, { cwd, timeoutMs = config.convert.timeoutMs, env } = {}) {
+  cmd = resolveCommand(cmd);
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
       cwd,

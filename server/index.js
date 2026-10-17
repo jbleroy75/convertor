@@ -5,6 +5,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const config = require('./config');
 const { securityHeaders } = require('./security');
+const { missingTools } = require('./convert/binaries');
 const { TransferStore } = require('./transfers/store');
 const convertRouter = require('./routes/convert');
 const transfersRouter = require('./routes/transfers');
@@ -21,7 +22,13 @@ async function createApp({ store } = {}) {
   app.use(securityHeaders);
 
   const pub = path.join(__dirname, '..', 'public');
-  app.get('/healthz', (req, res) => res.json({ ok: true }));
+  // Liste aussi les outils de conversion absents : diagnostic d'un déploiement incomplet
+  // (ex. image construite sans le Dockerfile du projet).
+  app.get('/healthz', (req, res) => {
+    const missing = missingTools().map((t) => t.cmd);
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, tools: missing.length ? 'incomplete' : 'ok', missing });
+  });
   app.use('/api', convertRouter);
   app.use('/api/transfers', transfersRouter(store));
   app.use('/api/tools', toolsRouter);
@@ -57,6 +64,13 @@ async function createApp({ store } = {}) {
 if (require.main === module) {
   createApp().then(({ app }) => {
     const server = app.listen(config.port, config.host, () => console.log(`Convertor en écoute sur http://${config.host}:${config.port}`));
+    const missing = missingTools();
+    if (missing.length)
+      console.warn(
+        `⚠️  Outils absents : ${missing.map((t) => `${t.cmd} (${t.label})`).join(', ')}.\n` +
+          '   Les conversions correspondantes échoueront. Construisez l’image avec le Dockerfile du projet ' +
+          '(Coolify : Build Pack « Dockerfile », pas Nixpacks).'
+      );
     // Gros fichiers : pas de délai global sur la requête (Caddy protège en amont).
     server.requestTimeout = 0;
     server.headersTimeout = 60_000;

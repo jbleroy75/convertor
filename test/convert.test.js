@@ -147,3 +147,12 @@ test('en-têtes de sécurité', async () => {
   assert.equal(res.headers.get('referrer-policy'), 'no-referrer');
   assert.equal(res.headers.get('x-frame-options'), 'DENY');
 });
+
+test('/healthz liste les outils de conversion manquants', async () => {
+  const body = await (await fetch(`${srv.base}/healthz`)).json();
+  assert.equal(body.ok, true);
+  assert.ok(Array.isArray(body.missing));
+  const { missingTools, which } = require('../server/convert/binaries');
+  assert.deepEqual(body.missing, missingTools().map((t) => t.cmd));
+  assert.ok(which('ffmpeg'), 'ffmpeg est présent dans l’environnement de test');
+});
