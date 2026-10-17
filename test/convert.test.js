@@ -128,7 +128,7 @@ test('les fichiers temporaires sont supprimés', async () => {
 });
 
 test('scripts et pages revalidés à chaque visite (pas de vieille version en cache)', async () => {
-  for (const url of ['/', '/js/receive.js', '/css/style.css']) {
+  for (const url of ['/', '/js/receive.js', '/css/style.css', '/vendor/fflate.js']) {
     const res = await fetch(`${srv.base}${url}`);
     assert.equal(res.headers.get('cache-control'), 'no-cache', url);
     assert.ok(res.headers.get('etag'), url);

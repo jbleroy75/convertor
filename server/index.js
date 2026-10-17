@@ -26,7 +26,7 @@ async function createApp({ store } = {}) {
   app.use('/api', (req, res) => res.status(404).json({ error: 'Introuvable' }));
 
   app.get('/vendor/fflate.js', (req, res) =>
-    res.sendFile(path.join(__dirname, '..', 'node_modules', 'fflate', 'umd', 'index.js'), { maxAge: '7d', headers: { 'Content-Type': 'text/javascript; charset=utf-8' } })
+    res.sendFile(path.join(__dirname, '..', 'node_modules', 'fflate', 'umd', 'index.js'), { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } })
   );
   // Page de réception : /t/<id>#<clé>  (la clé, dans le fragment, n'est jamais envoyée au serveur).
   app.get('/t/:id', (req, res) => res.sendFile(path.join(pub, 'receive.html'), { headers: { 'Cache-Control': 'no-store' } }));
