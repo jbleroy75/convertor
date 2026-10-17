@@ -32,50 +32,72 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
-      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || 'convertor' }}
-      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       PUBLIC_URL: ${{ vars.PUBLIC_URL || 'https://convertor.jbleroy.fr' }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Vérifier la configuration
         id: cfg
         run: |
-          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
-            echo "::warning::Secrets DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY absents : déploiement ignoré (voir README)."
+          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::warning::Secrets COOLIFY_WEBHOOK / COOLIFY_TOKEN absents : déploiement ignoré (voir README)."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Préparer SSH
+      - name: Vérifier que ce commit est toujours la tête de main
+        id: head
         if: steps.cfg.outputs.skip != 'true'
         run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
-            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-            echo "STRICT=yes" >> "$GITHUB_ENV"
-          else
-            echo "::warning::DEPLOY_KNOWN_HOSTS absent : l'empreinte du serveur est acceptée au premier contact."
-            echo "STRICT=accept-new" >> "$GITHUB_ENV"
+          # Coolify déploie la tête de la branche, pas un commit précis : si un push plus récent
+          # est arrivé, on ne déploie pas (le workflow de ce push déploiera après SES tests).
+          head=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::main a avancé ($head) : déploiement laissé au workflow du commit le plus récent."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Envoyer le code et relancer les conteneurs
-        if: steps.cfg.outputs.skip != 'true'
+      - name: Déclencher le déploiement Coolify
+        id: trigger
+        if: steps.cfg.outputs.skip != 'true' && steps.head.outputs.skip != 'true'
         run: |
-          SSH="ssh -i $HOME/.ssh/id_deploy -p $DEPLOY_PORT -o StrictHostKeyChecking=$STRICT -o BatchMode=yes $DEPLOY_USER@$DEPLOY_HOST"
-          # Le code est envoyé par SSH (git archive) : le serveur n'a pas besoin d'accès à GitHub.
-          git archive --format=tar.gz HEAD | $SSH "mkdir -p '$DEPLOY_PATH' && cat > '$DEPLOY_PATH/release.tar.gz'"
-          $SSH "DEPLOY_PATH='$DEPLOY_PATH' bash -s" < deploy/remote-deploy.sh
+          res=$(curl -fsS --max-time 30 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK")
+          echo "$res" | jq -r '.deployments[]?.message // empty'
+          dep=$(echo "$res" | jq -r '.deployments[0].deployment_uuid // empty')
+          [ -n "$dep" ] || { echo "::error::Réponse inattendue de Coolify : $res"; exit 1; }
+          echo "uuid=$dep" >> "$GITHUB_OUTPUT"
+          # Base de l'API Coolify, déduite de l'URL du webhook (…/api/v1/deploy?uuid=…).
+          echo "api=${COOLIFY_WEBHOOK%%/api/v1/*}/api/v1" >> "$GITHUB_OUTPUT"
+
+      - name: Suivre le build
+        if: steps.trigger.outcome == 'success'
+        env:
+          API: ${{ steps.trigger.outputs.api }}
+          DEP: ${{ steps.trigger.outputs.uuid }}
+        run: |
+          # Jusqu'à 30 minutes au total (le premier build installe LibreOffice, FFmpeg…).
+          deadline=$((SECONDS + 1800))
+          last=""
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            d=$(curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" "$API/deployments/$DEP" || echo '{}')
+            status=$(echo "$d" | jq -r '.status // "inconnu"')
+            [ "$status" != "$last" ] && echo "[$(date -u +%H:%M:%S)] statut : $status" && last="$status"
+            case "$status" in
+              finished) exit 0 ;;
+              failed|cancelled*|error)
+                echo "::group::Logs de build Coolify (fin)"
+                echo "$d" | jq -r '.logs // "[]" | (fromjson? // []) | .[] | select(.hidden != true) | .output' | tail -n 150
+                echo "::endgroup::"
+                echo "::error::Le déploiement Coolify a échoué ($status)"
+                exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::Délai dépassé en attendant Coolify"
+          exit 1
 
       - name: Vérifier que le site répond
-        if: steps.cfg.outputs.skip != 'true'
+        if: steps.trigger.outcome == 'success'
         run: |
-          # Le premier déploiement peut attendre l'émission du certificat HTTPS.
           for i in $(seq 1 36); do
             if curl -fsS --max-time 10 "$PUBLIC_URL/healthz"; then echo; echo "En ligne : $PUBLIC_URL"; exit 0; fi
             sleep 5
