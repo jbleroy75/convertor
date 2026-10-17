@@ -27,6 +27,8 @@ self.addEventListener('fetch', (e) => {
   const job = pending.get(dlId);
   if (!job) return e.respondWith(new Response('Téléchargement expiré, rechargez la page.', { status: 404 }));
   pending.delete(dlId);
+  // Le navigateur a bien confié le téléchargement au worker : la page arrête son délai de secours.
+  job.port.postMessage({ type: 'started' });
   e.respondWith(streamResponse(job));
 });
 

@@ -154,19 +154,15 @@
       const dlId = C.b64urlEncode(C.randomBytes(16));
       const speed = speedometer();
       let iframe;
-      let watchdog;
-      const stall = () => {
-        clearTimeout(watchdog);
-        watchdog = setTimeout(() => {
-          channel.port1.close();
-          iframe?.remove();
-          reject(Object.assign(new Error('Le service worker ne répond pas'), { stalled: true }));
-        }, SW_STALL_MS);
-      };
-      stall();
+      // Délai de secours limité au DÉMARRAGE : une fois que le worker a pris le téléchargement en main
+      // (« started »), un bloc lent n'est plus une raison de basculer en mémoire.
+      const watchdog = setTimeout(() => {
+        channel.port1.close();
+        iframe?.remove();
+        reject(Object.assign(new Error('Le service worker ne répond pas'), { stalled: true }));
+      }, SW_STALL_MS);
       channel.port1.onmessage = ({ data }) => {
-        if (data.type !== 'done' && data.type !== 'error') stall();
-        else clearTimeout(watchdog);
+        if (data.type !== 'ready') clearTimeout(watchdog);
         if (data.type === 'ready') {
           iframe = el('iframe', { hidden: true, src: `/__dl/${dlId}` });
           document.body.append(iframe);
