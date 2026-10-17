@@ -64,6 +64,18 @@ variable `TRUST_PROXY=1`, volume persistant monté sur `/data`.
 
 Tant que ces secrets sont absents, l'étape de déploiement est ignorée.
 
+**Durcissement du conteneur dans Coolify** (le `docker-compose.yml` ne s'applique pas en mode Dockerfile) :
+
+- *Configuration → Advanced → Custom Docker Options* : `--cap-drop=ALL --security-opt=no-new-privileges=true`
+- *Resource Limits* : mémoire `4g` (ou selon le serveur)
+- L'application tourne déjà en utilisateur non-root (`USER node` dans le `Dockerfile`).
+
+Limite connue : sous Coolify, le conteneur garde un accès sortant à Internet (Traefik doit pouvoir le joindre
+sur le réseau Coolify). Les moteurs restent bridés individuellement : FFmpeg limité au protocole `file`
+et aux démuxeurs locaux, pandoc en `--sandbox`, politique ImageMagick sans coders réseau. LibreOffice
+n'a pas d'équivalent ; pour un blocage strict, ajouter une règle de pare-feu `DOCKER-USER` sur l'hôte
+ou utiliser le `docker-compose.yml` sur un serveur sans Coolify.
+
 Le `docker-compose.yml` (avec Caddy) reste disponible pour héberger le site sur un serveur sans Coolify.
 
 ### Variables d'environnement

@@ -44,9 +44,21 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Vérifier que ce commit est toujours la tête de main
+        id: head
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          # Coolify déploie la tête de la branche, pas un commit précis : si un push plus récent
+          # est arrivé, on ne déploie pas (le workflow de ce push déploiera après SES tests).
+          head=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::main a avancé ($head) : déploiement laissé au workflow du commit le plus récent."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Déclencher le déploiement Coolify
         id: trigger
-        if: steps.cfg.outputs.skip != 'true'
+        if: steps.cfg.outputs.skip != 'true' && steps.head.outputs.skip != 'true'
         run: |
           res=$(curl -fsS --max-time 30 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK")
           echo "$res" | jq -r '.deployments[]?.message // empty'
@@ -57,15 +69,16 @@ jobs:
           echo "api=${COOLIFY_WEBHOOK%%/api/v1/*}/api/v1" >> "$GITHUB_OUTPUT"
 
       - name: Suivre le build
-        if: steps.cfg.outputs.skip != 'true'
+        if: steps.trigger.outcome == 'success'
         env:
           API: ${{ steps.trigger.outputs.api }}
           DEP: ${{ steps.trigger.outputs.uuid }}
         run: |
-          # Jusqu'à 30 minutes (le premier build installe LibreOffice, FFmpeg…).
+          # Jusqu'à 30 minutes au total (le premier build installe LibreOffice, FFmpeg…).
+          deadline=$((SECONDS + 1800))
           last=""
-          for i in $(seq 1 180); do
-            d=$(curl -fsS --max-time 30 -H "Authorization: Bearer $COOLIFY_TOKEN" "$API/deployments/$DEP" || echo '{}')
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            d=$(curl -fsS --max-time 20 -H "Authorization: Bearer $COOLIFY_TOKEN" "$API/deployments/$DEP" || echo '{}')
             status=$(echo "$d" | jq -r '.status // "inconnu"')
             [ "$status" != "$last" ] && echo "[$(date -u +%H:%M:%S)] statut : $status" && last="$status"
             case "$status" in
@@ -83,7 +96,7 @@ jobs:
           exit 1
 
       - name: Vérifier que le site répond
-        if: steps.cfg.outputs.skip != 'true'
+        if: steps.trigger.outcome == 'success'
         run: |
           for i in $(seq 1 36); do
             if curl -fsS --max-time 10 "$PUBLIC_URL/healthz"; then echo; echo "En ligne : $PUBLIC_URL"; exit 0; fi
