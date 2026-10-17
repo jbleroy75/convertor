@@ -127,6 +127,20 @@ test('les fichiers temporaires sont supprimés', async () => {
   assert.deepEqual(left, []);
 });
 
+test('scripts et pages revalidés à chaque visite (pas de vieille version en cache)', async () => {
+  for (const url of ['/', '/js/receive.js', '/css/style.css']) {
+    const res = await fetch(`${srv.base}${url}`);
+    assert.equal(res.headers.get('cache-control'), 'no-cache', url);
+    assert.ok(res.headers.get('etag'), url);
+    // Requête HTTP brute : fetch() modifie les en-têtes des requêtes conditionnelles.
+    const status = await new Promise((resolve, reject) =>
+      require('http').get(`${srv.base}${url}`, { headers: { 'If-None-Match': res.headers.get('etag') } }, (r) => (r.resume(), resolve(r.statusCode))).on('error', reject)
+    );
+    assert.equal(status, 304, url);
+  }
+  assert.match((await fetch(`${srv.base}/fonts/inter-latin-wght-normal.woff2`)).headers.get('cache-control'), /max-age=604800/);
+});
+
 test('en-têtes de sécurité', async () => {
   const res = await fetch(`${srv.base}/`);
   assert.match(res.headers.get('content-security-policy'), /default-src 'self'/);

@@ -32,7 +32,16 @@ async function createApp({ store } = {}) {
   app.get('/t/:id', (req, res) => res.sendFile(path.join(pub, 'receive.html'), { headers: { 'Cache-Control': 'no-store' } }));
   // Le service worker de téléchargement doit pouvoir contrôler tout le site.
   app.get('/sw.js', (req, res) => res.sendFile(path.join(pub, 'sw.js'), { headers: { 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' } }));
-  app.use(express.static(pub, { index: 'index.html', maxAge: '1h' }));
+  app.use(
+    express.static(pub, {
+      index: 'index.html',
+      setHeaders(res, file) {
+        // Polices et icône : immuables. Pages, scripts et styles : toujours revalidés (ETag),
+        // sinon un navigateur peut garder une ancienne version après un déploiement.
+        res.set('Cache-Control', /\.(woff2|svg)$/.test(file) ? 'public, max-age=604800' : 'no-cache');
+      },
+    })
+  );
 
   app.use((err, req, res, next) => {
     console.error(err);
