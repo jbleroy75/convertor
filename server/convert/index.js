@@ -259,4 +259,19 @@ async function convertFile(input, from, to, workDir) {
   return slots.use(() => rule.engine(input, from, to, workDir));
 }
 
-module.exports = { convertFile, findRule, formatMap, SUPPORTED, extOf, CATEGORY };
+module.exports = {
+  convertFile,
+  findRule,
+  formatMap,
+  SUPPORTED,
+  extOf,
+  CATEGORY,
+  // Réutilisés par les outils (compression, PDF, images, médias).
+  IMG_IN,
+  AUDIO_IN,
+  VIDEO_IN,
+  AUDIO_OUT,
+  MAGICK_CODER,
+  FFMPEG_DEMUXERS,
+  FFMPEG_OUT,
+};
