@@ -2,32 +2,44 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { startServer, root } = require('./helpers');
+const { startServer, root, available, needs, sh: run } = require('./helpers');
 const { parsePages, seconds } = require('../server/tools');
 
 const fx = path.join(root, 'tool-fixtures');
 fs.mkdirSync(fx, { recursive: true });
-const sh = (cmd, args) => execFileSync(cmd, args, { cwd: fx, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+const sh = (cmd, args) => run(fx, cmd, args);
 const pdfPages = (file) => Number(/Pages:\s+(\d+)/.exec(sh('pdfinfo', [file]))[1]);
 const imgSize = (file) => sh('identify', ['-format', '%w %h', `${file}[0]`]).trim().split(' ').map(Number);
 const duration = (file) => Number(sh('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]));
 
+// Fichiers dont le contenu est sans importance (refusés ou zippés avant tout outil).
+for (const n of ['any.png', 'any.pdf', 'any.wav']) fs.writeFileSync(path.join(fx, n), `contenu de ${n}`);
+
 let srv;
 test.before(async () => {
-  sh('convert', ['-size', '3000x2000', 'plasma:', '-quality', '98', 'photo.jpg']);
-  sh('convert', ['-size', '400x300', 'gradient:red-blue', 'small.png']);
-  sh('ffmpeg', ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-c:a', 'libmp3lame', '-b:a', '32k', 'low.mp3']);
-  sh('ffmpeg', ['-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=25:duration=3', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-c:v', 'libx264', '-crf', '12', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', 'clip.mp4']);
-  sh('ffmpeg', ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', 'tone.wav']);
-  // PDF de 3 pages avec images lourdes (Ghostscript doit pouvoir le réduire).
-  sh('convert', ['photo.jpg', 'photo.jpg', 'photo.jpg', '-quality', '100', 'heavy.pdf']);
-  sh('convert', ['small.png', 'small.png', 'doc2.pdf']);
+  // Fixtures produites seulement si l'outil est là ; les tests qui en dépendent sont sautés sinon.
+  if (available('convert')) {
+    sh('convert', ['-size', '3000x2000', 'plasma:', '-quality', '98', 'photo.jpg']);
+    sh('convert', ['-size', '400x300', 'gradient:red-blue', 'small.png']);
+  }
+  if (available('ffmpeg')) {
+    sh('ffmpeg', ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-c:a', 'libmp3lame', '-b:a', '32k', 'low.mp3']);
+    sh('ffmpeg', ['-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=25:duration=3', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-c:v', 'libx264', '-crf', '12', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', 'clip.mp4']);
+    sh('ffmpeg', ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', 'tone.wav']);
+  }
+  if (available('convert:pdf')) {
+    // PDF de 3 pages avec images lourdes (Ghostscript doit pouvoir le réduire).
+    sh('convert', ['photo.jpg', 'photo.jpg', 'photo.jpg', '-quality', '100', 'heavy.pdf']);
+    sh('convert', ['small.png', 'small.png', 'doc2.pdf']);
+  }
   srv = await startServer();
 });
-test.after(() => srv.close());
+// srv absent si la préparation a échoué : ne pas masquer l'erreur d'origine.
+test.after(() => srv?.close());
+
+let outCount = 0;
 
 async function tool(id, names, options) {
   const form = new FormData();
@@ -35,7 +47,7 @@ async function tool(id, names, options) {
   for (const n of names) form.append('files', new Blob([fs.readFileSync(path.join(fx, n))]), n);
   const res = await fetch(`${srv.base}/api/tools/${id}`, { method: 'POST', body: form });
   const buf = Buffer.from(await res.arrayBuffer());
-  const out = path.join(fx, `out-${id}-${Date.now()}${/filename="[^"]*(\.[a-z0-9]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || ''}`);
+  const out = path.join(fx, `out-${id}-${++outCount}${/filename="[^"]*(\.[a-z0-9]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || ''}`);
   if (res.ok) fs.writeFileSync(out, buf);
   return { res, buf, out, stats: res.headers.get('x-convertor-stats') && JSON.parse(decodeURIComponent(res.headers.get('x-convertor-stats'))) };
 }
@@ -46,7 +58,7 @@ test('liste des outils', async () => {
   assert.equal(tools['pdf-merge'].min, 2);
 });
 
-test('compression photo : plus légère, redimensionnée, métadonnées retirées', { timeout: 60_000 }, async () => {
+test('compression photo : plus légère, redimensionnée, métadonnées retirées', { timeout: 60_000, ...needs('convert', 'identify') }, async () => {
   const before = fs.statSync(path.join(fx, 'photo.jpg')).size;
   const { res, out, stats } = await tool('compress', ['photo.jpg'], { level: 'strong' });
   assert.equal(res.status, 200);
@@ -56,12 +68,12 @@ test('compression photo : plus légère, redimensionnée, métadonnées retirée
   assert.equal(stats[0].after, fs.statSync(out).size);
 });
 
-test('compression : taille max d’image personnalisée', { timeout: 60_000 }, async () => {
+test('compression : taille max d’image personnalisée', { timeout: 60_000, ...needs('convert', 'identify') }, async () => {
   const { out } = await tool('compress', ['photo.jpg'], { level: 'light', maxImage: 800 });
   assert.deepEqual(imgSize(out), [800, 533]);
 });
 
-test('compression vidéo : MP4 plus léger, résolution réduite', { timeout: 120_000 }, async () => {
+test('compression vidéo : MP4 plus léger, résolution réduite', { timeout: 120_000, ...needs('ffmpeg', 'ffprobe') }, async () => {
   const before = fs.statSync(path.join(fx, 'clip.mp4')).size;
   const { res, out } = await tool('compress', ['clip.mp4'], { level: 'strong' });
   assert.equal(res.status, 200);
@@ -69,7 +81,7 @@ test('compression vidéo : MP4 plus léger, résolution réduite', { timeout: 12
   assert.equal(sh('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=height', '-of', 'csv=p=0', out]).trim(), '720');
 });
 
-test('compression audio et PDF', { timeout: 120_000 }, async () => {
+test('compression audio et PDF', { timeout: 120_000, ...needs('ffmpeg', 'convert:pdf', 'gs', 'pdfinfo') }, async () => {
   const wav = await tool('compress', ['tone.wav'], { level: 'balanced' });
   assert.match(wav.res.headers.get('content-disposition'), /tone\.mp3/);
   assert.ok(wav.stats[0].after < wav.stats[0].before);
@@ -79,7 +91,7 @@ test('compression audio et PDF', { timeout: 120_000 }, async () => {
   assert.equal(pdfPages(pdf.out), 3);
 });
 
-test('compression : si le résultat est plus gros, on rend l’original', async () => {
+test('compression : si le résultat est plus gros, on rend l’original', needs('ffmpeg'), async () => {
   // MP3 à 32 kb/s : le réencoder en 192 kb/s (niveau léger) le ferait grossir.
   const { res, buf, stats } = await tool('compress', ['low.mp3'], { level: 'light' });
   assert.equal(res.status, 200);
@@ -87,7 +99,7 @@ test('compression : si le résultat est plus gros, on rend l’original', async 
   assert.equal(stats[0].kept, true);
 });
 
-test('photo impossible à alléger : métadonnées quand même supprimées', async () => {
+test('photo impossible à alléger : métadonnées quand même supprimées', needs('convert', 'identify'), async () => {
   // JPG déjà très compressé (qualité 30) + commentaire « secret » : le réencoder en qualité 85 le ferait grossir.
   sh('convert', ['-size', '200x150', 'plasma:', '-set', 'comment', 'GPS-SECRET-48.85N', '-quality', '30', 'tagged.jpg']);
   assert.match(sh('identify', ['-format', '%c', 'tagged.jpg']), /GPS-SECRET/);
@@ -98,49 +110,49 @@ test('photo impossible à alléger : métadonnées quand même supprimées', asy
   assert.equal(stats[0].kept, true);
 });
 
-test('compression de plusieurs fichiers → ZIP', { timeout: 60_000 }, async () => {
+test('compression de plusieurs fichiers → ZIP', { timeout: 60_000, ...needs('convert') }, async () => {
   const { res, buf } = await tool('compress', ['photo.jpg', 'small.png'], { level: 'balanced' });
   assert.equal(res.status, 200);
   assert.equal(buf.subarray(0, 2).toString(), 'PK');
 });
 
-test('fusion de PDF', async () => {
+test('fusion de PDF', needs('convert:pdf', 'pdfunite', 'pdfinfo'), async () => {
   const { res, out } = await tool('pdf-merge', ['heavy.pdf', 'doc2.pdf']);
   assert.equal(res.status, 200);
   assert.equal(pdfPages(out), 5);
 });
 
 test('fusion : il faut au moins deux PDF', async () => {
-  const { res, buf } = await tool('pdf-merge', ['doc2.pdf']);
+  const { res, buf } = await tool('pdf-merge', ['any.pdf']);
   assert.equal(res.status, 422);
   assert.match(JSON.parse(buf).error, /au moins 2/);
 });
 
-test('extraction de pages (ordre respecté)', async () => {
+test('extraction de pages (ordre respecté)', needs('convert:pdf', 'pdfinfo', 'pdfseparate', 'pdfunite'), async () => {
   const { res, out } = await tool('pdf-extract', ['heavy.pdf'], { pages: '3,1' });
   assert.equal(res.status, 200);
   assert.equal(pdfPages(out), 2);
 });
 
-test('extraction : pages hors document refusées', async () => {
+test('extraction : pages hors document refusées', needs('convert:pdf', 'pdfinfo'), async () => {
   const { res, buf } = await tool('pdf-extract', ['heavy.pdf'], { pages: '2-9' });
   assert.equal(res.status, 422);
   assert.match(JSON.parse(buf).error, /hors du document/);
 });
 
-test('découpe : un PDF par page', async () => {
+test('découpe : un PDF par page', needs('convert:pdf', 'pdfseparate'), async () => {
   const { res, buf } = await tool('pdf-split', ['heavy.pdf']);
   assert.equal(res.status, 200);
   for (const p of ['heavy-page-01.pdf', 'heavy-page-02.pdf', 'heavy-page-03.pdf']) assert.ok(buf.includes(Buffer.from(p)), p);
 });
 
-test('images → un seul PDF', { timeout: 60_000 }, async () => {
+test('images → un seul PDF', { timeout: 60_000, ...needs('convert:pdf', 'pdfinfo') }, async () => {
   const { res, out } = await tool('images-to-pdf', ['small.png', 'photo.jpg']);
   assert.equal(res.status, 200);
   assert.equal(pdfPages(out), 2);
 });
 
-test('redimensionner et pivoter', async () => {
+test('redimensionner et pivoter', needs('convert', 'identify'), async () => {
   const half = await tool('image-resize', ['small.png'], { percent: 50 });
   assert.deepEqual(imgSize(half.out), [200, 150]);
   const w = await tool('image-resize', ['small.png'], { width: 100 });
@@ -151,7 +163,7 @@ test('redimensionner et pivoter', async () => {
   assert.equal(none.res.status, 422);
 });
 
-test('couper une vidéo et un audio', { timeout: 60_000 }, async () => {
+test('couper une vidéo et un audio', { timeout: 60_000, ...needs('ffmpeg', 'ffprobe') }, async () => {
   const v = await tool('media-trim', ['clip.mp4'], { start: '0:01', end: '2' });
   assert.equal(v.res.status, 200);
   assert.ok(Math.abs(duration(v.out) - 1) < 0.15, `durée ${duration(v.out)}`);
@@ -163,16 +175,16 @@ test('couper une vidéo et un audio', { timeout: 60_000 }, async () => {
 });
 
 test('ZIP de fichiers quelconques', async () => {
-  const { res, buf } = await tool('zip', ['tone.wav', 'doc2.pdf']);
+  const { res, buf } = await tool('zip', ['any.wav', 'any.pdf']);
   assert.equal(res.status, 200);
-  assert.ok(buf.includes(Buffer.from('doc2.pdf')));
+  assert.ok(buf.includes(Buffer.from('any.wav')) && buf.includes(Buffer.from('any.pdf')));
 });
 
 test('format non accepté, outil inconnu, options invalides', async () => {
-  assert.equal((await tool('pdf-split', ['small.png'])).res.status, 422);
-  assert.equal((await tool('rm-rf', ['small.png'])).res.status, 422);
-  assert.equal((await tool('image-rotate', ['small.png'], { angle: 45 })).res.status, 422);
-  assert.equal((await tool('compress', ['small.png'], { level: '; rm -rf /' })).res.status, 422);
+  assert.equal((await tool('pdf-split', ['any.png'])).res.status, 422);
+  assert.equal((await tool('rm-rf', ['any.png'])).res.status, 422);
+  assert.equal((await tool('image-rotate', ['any.png'], { angle: 45 })).res.status, 422);
+  assert.equal((await tool('compress', ['any.png'], { level: '; rm -rf /' })).res.status, 422);
 });
 
 test('analyse des pages et des durées', () => {

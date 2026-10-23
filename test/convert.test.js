@@ -2,26 +2,32 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { startServer, root } = require('./helpers');
+const { startServer, root, available, needs, sh: run } = require('./helpers');
 
 const fx = path.join(root, 'fixtures');
 fs.mkdirSync(fx, { recursive: true });
-const sh = (cmd, args) => execFileSync(cmd, args, { cwd: fx, stdio: 'ignore' });
+const sh = (cmd, args) => run(fx, cmd, args);
+
+// Fichier dont le contenu est sans importance (conversions refusées avant tout outil).
+fs.writeFileSync(path.join(fx, 'any.wav'), 'RIFF');
 
 let srv;
 test.before(async () => {
-  sh('convert', ['-size', '64x48', 'gradient:red-blue', 'img.png']);
-  sh('ffmpeg', ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', 'tone.wav']);
-  sh('ffmpeg', ['-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=10:duration=1', '-pix_fmt', 'yuv420p', 'clip.mp4']);
+  // Fixtures produites seulement si l'outil est là ; les tests qui en dépendent sont sautés sinon.
+  if (available('convert')) sh('convert', ['-size', '64x48', 'gradient:red-blue', 'img.png']);
+  if (available('ffmpeg')) {
+    sh('ffmpeg', ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', 'tone.wav']);
+    sh('ffmpeg', ['-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=10:duration=1', '-pix_fmt', 'yuv420p', 'clip.mp4']);
+  }
   fs.writeFileSync(path.join(fx, 'doc.md'), '# Titre\n\nUn *paragraphe* avec des accents : été, garçon.\n');
   fs.writeFileSync(path.join(fx, 'data.json'), JSON.stringify([{ nom: 'Ada', age: 36 }, { nom: 'Alan', age: 41 }]));
-  sh('pandoc', ['doc.md', '-o', 'doc.docx']);
+  if (available('pandoc')) sh('pandoc', ['doc.md', '-o', 'doc.docx']);
   srv = await startServer();
 });
-test.after(() => srv.close());
+// srv absent si la préparation a échoué : ne pas masquer l'erreur d'origine.
+test.after(() => srv?.close());
 
 async function convert(names, target, { zip = false } = {}) {
   const form = new FormData();
@@ -49,18 +55,18 @@ test('formats exposés', async () => {
   assert.ok(r.formats.mp4.targets.includes('mp3'));
 });
 
-for (const [file, target, check] of [
-  ['img.png', 'jpg', magic.jpg],
-  ['img.png', 'webp', magic.webp],
-  ['img.png', 'pdf', magic.pdf],
-  ['tone.wav', 'mp3', magic.mp3],
-  ['clip.mp4', 'gif', magic.gif],
-  ['doc.docx', 'pdf', magic.pdf],
-  ['doc.md', 'pdf', magic.pdf],
-  ['doc.md', 'docx', magic.zip],
-  ['doc.docx', 'md', (b) => b.toString().startsWith('# Titre')],
+for (const [file, target, check, tools] of [
+  ['img.png', 'jpg', magic.jpg, ['convert']],
+  ['img.png', 'webp', magic.webp, ['convert']],
+  ['img.png', 'pdf', magic.pdf, ['convert', 'convert:pdf']],
+  ['tone.wav', 'mp3', magic.mp3, ['ffmpeg']],
+  ['clip.mp4', 'gif', magic.gif, ['ffmpeg']],
+  ['doc.docx', 'pdf', magic.pdf, ['pandoc', 'soffice']],
+  ['doc.md', 'pdf', magic.pdf, ['pandoc', 'soffice']],
+  ['doc.md', 'docx', magic.zip, ['pandoc']],
+  ['doc.docx', 'md', (b) => b.toString().startsWith('# Titre'), ['pandoc']],
 ]) {
-  test(`conversion ${file} → ${target}`, { timeout: 120_000 }, async () => {
+  test(`conversion ${file} → ${target}`, { timeout: 120_000, ...needs(...tools) }, async () => {
     const { res, buf } = await convert([file], target);
     assert.equal(res.status, 200, buf.toString().slice(0, 300));
     assert.ok(check(buf), `signature ${target} attendue`);
@@ -68,7 +74,7 @@ for (const [file, target, check] of [
   });
 }
 
-test('PDF de 11 pages → images dans l’ordre des pages', { timeout: 120_000 }, async () => {
+test('PDF de 11 pages → images dans l’ordre des pages', { timeout: 120_000, ...needs('convert:pdf', 'pdftoppm') }, async () => {
   // Pages de largeurs croissantes : la page n doit être plus large que la page n-1.
   const pages = Array.from({ length: 11 }, (_, i) => `page${i}.png`);
   pages.forEach((p, i) => sh('convert', ['-size', `${20 + i * 10}x20`, 'xc:gray', p]));
@@ -81,7 +87,7 @@ test('PDF de 11 pages → images dans l’ordre des pages', { timeout: 120_000 }
   assert.deepEqual(widths, [...widths].sort((a, b) => a - b));
 });
 
-test('md → html conserve les accents', async () => {
+test('md → html conserve les accents', needs('pandoc'), async () => {
   const { res, buf } = await convert(['doc.md'], 'html');
   assert.equal(res.status, 200);
   assert.match(buf.toString(), /<em>paragraphe<\/em>/);
@@ -94,7 +100,7 @@ test('json → csv', async () => {
   assert.equal(buf.toString(), 'nom,age\r\nAda,36\r\nAlan,41\r\n');
 });
 
-test('plusieurs fichiers → ZIP', async () => {
+test('plusieurs fichiers → ZIP', needs('convert'), async () => {
   const { res, buf } = await convert(['img.png', 'img.png'], 'jpg');
   assert.equal(res.status, 200);
   assert.ok(magic.zip(buf));
@@ -109,18 +115,18 @@ test('mode « zipper uniquement »', async () => {
 });
 
 test('conversion impossible → 422 avec message', async () => {
-  const { res, buf } = await convert(['tone.wav'], 'docx');
+  const { res, buf } = await convert(['any.wav'], 'docx');
   assert.equal(res.status, 422);
   assert.match(JSON.parse(buf).error, /non prise en charge/);
 });
 
-test('fichier corrompu → erreur propre', async () => {
+test('fichier corrompu → erreur propre', needs('convert'), async () => {
   fs.writeFileSync(path.join(fx, 'broken.png'), 'pas une image');
   const { res } = await convert(['broken.png'], 'jpg');
   assert.equal(res.status, 422);
 });
 
-test('les fichiers temporaires sont supprimés', async () => {
+test('les fichiers temporaires sont supprimés', needs('convert'), async () => {
   await convert(['img.png'], 'jpg');
   await new Promise((r) => setTimeout(r, 200));
   const left = fs.readdirSync(process.env.TMP_DIR);
@@ -154,5 +160,8 @@ test('/healthz liste les outils de conversion manquants', async () => {
   assert.ok(Array.isArray(body.missing));
   const { missingTools, which } = require('../server/convert/binaries');
   assert.deepEqual(body.missing, missingTools().map((t) => t.cmd));
-  assert.ok(which('ffmpeg'), 'ffmpeg est présent dans l’environnement de test');
+  assert.equal(body.tools, body.missing.length ? 'incomplete' : 'ok');
+  // Détection indépendante de l'environnement : node est forcément là, une commande inventée non.
+  assert.equal(which(process.execPath), process.execPath);
+  assert.equal(which('commande-introuvable-convertor'), null);
 });

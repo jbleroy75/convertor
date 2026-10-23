@@ -4,7 +4,8 @@
 // réception (multer), noms d'affichage sûrs, et renvoi du résultat (fichier seul ou ZIP).
 
 const multer = require('multer');
-const archiver = require('archiver');
+// archiver 8 : module ESM, classe ZipArchive (plus de fabrique archiver('zip')). require(esm) : Node ≥ 20.19 / 22.12.
+const { ZipArchive } = require('archiver');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -88,7 +89,7 @@ async function sendResult(res, outputs, errors, zipName, { forceZip = false } = 
 function sendZip(res, entries, errors, zipName) {
   res.attachment(zipName);
   res.set('Cache-Control', 'no-store');
-  const archive = archiver('zip', { zlib: { level: 6 }, forceZip64: false });
+  const archive = new ZipArchive({ zlib: { level: 6 }, forceZip64: false });
   archive.on('warning', (e) => console.warn('[zip]', e.message));
   archive.on('error', (e) => {
     console.error('[zip]', e);
